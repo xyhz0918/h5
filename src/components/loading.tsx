@@ -6,6 +6,77 @@ import { matrixBinaryTokens, matrixRainPhrases, matrixStoryTokens } from "../lib
 import type { TransitionPhase } from "../types";
 import { useDesignCanvasScale } from "../hooks/useDesignCanvasScale";
 
+type ParticleSprite = {
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+};
+
+const particleSpriteCache = new Map<string, ParticleSprite>();
+
+const quantize = (value: number, step: number) => Math.round(value / step) * step;
+
+const isLowPowerCanvasRuntime = () => {
+  const navigatorWithMemory = navigator as Navigator & { deviceMemory?: number };
+  return (
+    window.matchMedia("(pointer: coarse)").matches ||
+    (navigator.hardwareConcurrency || 8) <= 4 ||
+    (navigatorWithMemory.deviceMemory || 8) <= 4
+  );
+};
+
+const getParticleSprite = (
+  token: string,
+  size: number,
+  red: number,
+  green: number,
+  blue: number,
+  isDot = false
+): ParticleSprite => {
+  const spriteSize = isDot ? Math.max(2.8, quantize(size, 0.5)) : Math.max(7, quantize(size, 0.5));
+  const r = quantize(red, 8);
+  const g = quantize(green, 8);
+  const b = quantize(blue, 8);
+  const key = `${isDot ? "dot" : token}:${spriteSize}:${r}:${g}:${b}`;
+  const cached = particleSpriteCache.get(key);
+  if (cached) return cached;
+
+  const blur = isDot ? 10 : 13;
+  const padding = blur + 7;
+  const width = Math.ceil((isDot ? spriteSize : spriteSize * 1.72) + padding * 2);
+  const height = Math.ceil((isDot ? spriteSize : spriteSize * 1.58) + padding * 2);
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  canvas.width = Math.max(1, Math.floor(width * pixelRatio));
+  canvas.height = Math.max(1, Math.floor(height * pixelRatio));
+
+  if (context) {
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, width, height);
+    context.globalCompositeOperation = "lighter";
+    context.shadowColor = `rgba(${r}, ${g}, ${b}, 0.88)`;
+    context.shadowBlur = blur;
+    context.fillStyle = `rgba(${r}, ${g}, ${b}, 0.94)`;
+
+    if (isDot) {
+      context.beginPath();
+      context.arc(width / 2, height / 2, spriteSize / 2, 0, Math.PI * 2);
+      context.fill();
+    } else {
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.font = `${spriteSize}px Consolas, "Microsoft YaHei", monospace`;
+      context.fillText(token, width / 2, height / 2 + spriteSize * 0.02);
+    }
+  }
+
+  const sprite = { canvas, width, height };
+  particleSpriteCache.set(key, sprite);
+  return sprite;
+};
+
 export function IntroMascotMorph() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -40,9 +111,13 @@ export function IntroMascotMorph() {
 
     const tokens = ["0", "1", "\u8c6a", "\u58eb", "\u597d", "\u5403"];
     const playhead = { progress: 0, alpha: 1 };
+    const ease = gsap.parseEase("power3.inOut");
+    const clamp = gsap.utils.clamp(0, 1);
+    const lowPowerCanvas = isLowPowerCanvasRuntime();
     let disposed = false;
     let timeline: ReturnType<typeof gsap.timeline> | null = null;
     let setupFrame = 0;
+    let lastDrawTime = 0;
     let imageStarted = false;
     let morphStarted = false;
     let pixelRatio = 1;
@@ -184,13 +259,12 @@ export function IntroMascotMorph() {
     };
 
     const draw = () => {
+      const now = performance.now();
+      if (lowPowerCanvas && lastDrawTime && now - lastDrawTime < 28 && playhead.progress < 1) return;
+      lastDrawTime = now;
+
       context.clearRect(0, 0, width, height);
       context.globalCompositeOperation = "lighter";
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-
-      const ease = gsap.parseEase("power3.inOut");
-      const clamp = gsap.utils.clamp(0, 1);
 
       for (const point of points) {
         const local = clamp((playhead.progress - point.delay) / (1 - point.delay));
@@ -210,21 +284,14 @@ export function IntroMascotMorph() {
         const g = Math.round(gsap.utils.interpolate(255, 86, redMix));
         const b = Math.round(gsap.utils.interpolate(154, 104, redMix));
         const size = point.size * gsap.utils.interpolate(1.15, 0.82, eased);
+        const isDot = local >= 0.72;
+        const sprite = getParticleSprite(point.token, isDot ? Math.max(2.7, size * 0.48) : size, r, g, b, isDot);
 
-        context.shadowColor = `rgba(${r}, ${g}, ${b}, ${Math.min(0.88, alpha + 0.2)})`;
-        context.shadowBlur = 12 + (1 - eased) * 10;
-        context.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-
-        if (local < 0.72) {
-          context.font = `${size}px Consolas, "Microsoft YaHei", monospace`;
-          context.fillText(point.token, x, y);
-        } else {
-          context.beginPath();
-          context.arc(x, y, Math.max(1.35, size * 0.24), 0, Math.PI * 2);
-          context.fill();
-        }
+        context.globalAlpha = alpha;
+        context.drawImage(sprite.canvas, x - sprite.width / 2, y - sprite.height / 2, sprite.width, sprite.height);
       }
 
+      context.globalAlpha = 1;
       context.globalCompositeOperation = "source-over";
       context.shadowBlur = 0;
     };
@@ -266,15 +333,25 @@ export function IntroMascotMorph() {
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        timeline?.pause();
+      } else {
+        timeline?.resume();
+      }
+    };
+
     resizeCanvas();
     setupFrame = window.requestAnimationFrame(() => {
       setupFrame = window.requestAnimationFrame(loadImage);
     });
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       disposed = true;
       window.cancelAnimationFrame(setupFrame);
       timeline?.kill();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       context.clearRect(0, 0, width, height);
     };
   }, []);
@@ -357,7 +434,16 @@ export function LoadingPage({
       }
     };
 
+    const completeEntry = () => {
+      updateDisplayProgress(100);
+      if (!hasCompletedRef.current) {
+        hasCompletedRef.current = true;
+        onEnter();
+      }
+    };
+
     updateDisplayProgress(0);
+    const completionTimer = window.setTimeout(completeEntry, loadingDurationMs + 120);
 
     const tween = gsap.to(progressValue, {
       value: 100,
@@ -370,16 +456,11 @@ export function LoadingPage({
         lastProgress = nextProgress;
         updateDisplayProgress(nextProgress);
       },
-      onComplete: () => {
-        updateDisplayProgress(100);
-        if (!hasCompletedRef.current) {
-          hasCompletedRef.current = true;
-          onEnter();
-        }
-      }
+      onComplete: completeEntry
     });
 
     return () => {
+      window.clearTimeout(completionTimer);
       tween.kill();
     };
   }, [onEnter]);
@@ -401,9 +482,10 @@ export function LoadingPage({
     let canvasWidth = 0;
     let canvasHeight = 0;
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const lowPowerCanvas = isLowPowerCanvasRuntime();
     const fontSize = 14;
     const columnWidth = 22;
-    const intervalMs = 76;
+    const intervalMs = lowPowerCanvas ? 98 : 76;
 
     const pickMatrixToken = (preferStory = false) => {
       if (Math.random() < (preferStory ? 0.36 : 0.24)) {
@@ -466,8 +548,6 @@ export function LoadingPage({
 
       context.fillStyle = "rgba(0, 0, 0, 0.44)";
       context.fillRect(0, 0, canvasWidth, canvasHeight);
-      context.textBaseline = "top";
-      context.textAlign = "center";
 
       for (let index = 0; index < columns; index += 1) {
         const x = index * columnWidth + columnWidth / 2 + columnOffsets[index];
@@ -481,21 +561,23 @@ export function LoadingPage({
           const isStoryToken = matrixStoryTokens.includes(token) || /[^\x00-\x7F]/.test(token);
           const alpha = tail === 0 ? 0.94 : Math.max(0.07, 0.5 - tail * 0.052);
           const drawFontSize = isStoryToken ? 16 : fontSize;
+          const sprite = getParticleSprite(
+            token,
+            drawFontSize,
+            tail === 0 ? (isStoryToken ? 197 : 236) : (isStoryToken ? 168 : 78),
+            255,
+            tail === 0 ? (isStoryToken ? 216 : 240) : (isStoryToken ? 202 : 141),
+            false
+          );
 
-          context.shadowColor = isStoryToken
-            ? `rgba(137, 255, 183, ${Math.min(0.72, alpha + 0.08)})`
-            : `rgba(43, 255, 124, ${Math.min(0.62, alpha + 0.08)})`;
-          context.shadowBlur = tail === 0 ? 8 : 3;
-          context.font = `${drawFontSize}px Consolas, "Microsoft YaHei", monospace`;
-          context.fillStyle =
-            tail === 0
-              ? isStoryToken
-                ? "rgba(197, 255, 216, 0.82)"
-                : "rgba(236, 255, 240, 0.88)"
-              : isStoryToken
-                ? `rgba(168, 255, 202, ${alpha})`
-                : `rgba(78, 255, 141, ${alpha})`;
-          context.fillText(token, x, y);
+          context.globalAlpha = tail === 0 ? (isStoryToken ? 0.82 : 0.88) : alpha;
+          context.drawImage(
+            sprite.canvas,
+            x - sprite.width / 2,
+            y - sprite.height / 2 + drawFontSize * 0.78,
+            sprite.width,
+            sprite.height
+          );
         }
 
         drops[index] += speeds[index];
@@ -510,6 +592,7 @@ export function LoadingPage({
         }
       }
 
+      context.globalAlpha = 1;
       context.shadowBlur = 0;
     };
 
@@ -567,7 +650,9 @@ export function LoadingPage({
     let lastDrawTime = 0;
     let width = 0;
     let height = 0;
+    const lowPowerCanvas = isLowPowerCanvasRuntime();
     const animationDurationMs = 3000;
+    const minFrameMs = lowPowerCanvas ? 42 : 28;
 
     const mascotTokens = [
       "0",
@@ -607,7 +692,7 @@ export function LoadingPage({
 
       const data = maskContext.getImageData(0, 0, width, height).data;
       const nextPoints: CodePoint[] = [];
-      const step = Math.max(9, Math.round(width / 38));
+      const step = lowPowerCanvas ? Math.max(12, Math.round(width / 30)) : Math.max(9, Math.round(width / 38));
 
       for (let y = step * 0.7; y < height; y += step) {
         for (let x = step * 0.55; x < width; x += step) {
@@ -626,7 +711,9 @@ export function LoadingPage({
         }
       }
 
-      points = nextPoints;
+      points = lowPowerCanvas
+        ? nextPoints.sort(() => Math.random() - 0.5).slice(0, 430)
+        : nextPoints;
     };
 
     const shouldDraw = () => !disposed && !isExitingRef.current && document.visibilityState === "visible";
@@ -637,7 +724,7 @@ export function LoadingPage({
         return;
       }
       if (!startTime) startTime = time;
-      if (time - lastDrawTime < 28) {
+      if (time - lastDrawTime < minFrameMs) {
         rafId = window.requestAnimationFrame(draw);
         return;
       }
@@ -648,8 +735,6 @@ export function LoadingPage({
 
       context.clearRect(0, 0, width, height);
       context.globalCompositeOperation = "source-over";
-      context.textAlign = "center";
-      context.textBaseline = "middle";
 
       for (const point of points) {
         const born = Math.max(0, (progressRatio - point.delay) / 0.22);
@@ -658,15 +743,27 @@ export function LoadingPage({
 
         const alpha = point.alpha * reveal * fade;
         const drift = Math.sin(progressRatio * 7 + point.x * 0.02) * 5 * (1 - progressRatio);
-        context.font = `${point.size}px Consolas, "Microsoft YaHei", monospace`;
-        context.shadowColor = `rgba(73, 255, 149, ${Math.min(0.86, alpha + 0.18)})`;
-        context.shadowBlur = 12;
-        context.fillStyle = point.token.length > 2
-          ? `rgba(188, 255, 212, ${alpha})`
-          : `rgba(68, 255, 140, ${alpha})`;
-        context.fillText(point.token, point.x + drift, point.y - progressRatio * 10);
+        const isStoryTone = point.token.length > 2;
+        const sprite = getParticleSprite(
+          point.token,
+          point.size,
+          isStoryTone ? 188 : 68,
+          255,
+          isStoryTone ? 212 : 140,
+          false
+        );
+
+        context.globalAlpha = alpha;
+        context.drawImage(
+          sprite.canvas,
+          point.x + drift - sprite.width / 2,
+          point.y - progressRatio * 10 - sprite.height / 2,
+          sprite.width,
+          sprite.height
+        );
       }
 
+      context.globalAlpha = 1;
       context.shadowBlur = 0;
       if (fade > 0 && progressRatio < 1) {
         rafId = window.requestAnimationFrame(draw);

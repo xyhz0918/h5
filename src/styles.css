@@ -93,7 +93,7 @@ button {
 }
 
 .ingredient-capsule-page .screen-frame {
-  overflow: visible;
+  overflow: hidden;
 }
 
 .screen::-webkit-scrollbar {
@@ -5229,14 +5229,14 @@ button {
 
 .ingredient-capsule-page {
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .ingredient-capsule-page .screen-body {
-  height: auto;
-  min-height: 0;
+  height: 100%;
+  min-height: 100%;
   gap: 6px;
-  overflow: visible;
+  overflow: hidden;
   padding: 30px 14px 18px;
 }
 
@@ -5623,6 +5623,8 @@ button {
   box-shadow: none;
   cursor: pointer;
   pointer-events: auto;
+  touch-action: none;
+  will-change: transform;
   transition:
     opacity 160ms ease,
     filter 160ms ease,
@@ -5645,6 +5647,16 @@ button {
   outline: none;
   transform: translateY(-3px);
   filter: brightness(1.08);
+}
+
+.ingredient-capsule-page .source-image-card.is-dragging {
+  z-index: 24;
+  cursor: grabbing;
+  filter: brightness(1.08);
+  transform:
+    translate3d(var(--source-drag-x, 0), var(--source-drag-y, 0), 0)
+    scale(1.035);
+  transition: none;
 }
 
 .ingredient-capsule-page .source-image-card.accepted img {

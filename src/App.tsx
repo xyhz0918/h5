@@ -31,6 +31,110 @@ type ReportImageCache = {
   blob: Blob;
 };
 
+type IdleWindow = typeof window & {
+  requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
+const h5PagePreloadOrder: PageId[] = [
+  "home",
+  "select",
+  "workOrder",
+  "ingredientScan",
+  "softRepair",
+  "proofingLive",
+  "bakingLive",
+  "packingLive",
+  "report"
+];
+
+const h5PageImagePreloadMap: Record<PageId, string[]> = {
+  home: [
+    assets.bgPortal,
+    assets.logoCompact,
+    assets.homePlatform,
+    assets.homeMascot,
+    assets.homePanelOnline,
+    assets.homePanelPlan,
+    assets.homePanelBread,
+    assets.homePanelScan,
+    assets.homePanelComplete
+  ],
+  select: [assets.bgCards, assets.mascotField],
+  workOrder: [assets.bgFactory, assets.factoryCutout, assets.mascotOperator],
+  ingredientScan: [
+    assets.bgTerminal,
+    assets.ingredientMixer,
+    assets.ingredientCardGluten,
+    assets.ingredientCardYeast,
+    assets.ingredientCardWheat,
+    assets.ingredientCardQuinoa
+  ],
+  softRepair: [assets.bgToastLab, assets.mascotOperator],
+  proofingLive: [
+    assets.bgToastLab,
+    assets.proofingChamber,
+    assets.proofingSliderTrack,
+    assets.proofingMarkerLow,
+    assets.proofingMarkerIdeal,
+    assets.proofingMarkerHigh
+  ],
+  bakingLive: [assets.bgFactory, assets.bakingOven, assets.toastDough, assets.toastRaw, assets.toastOverdone, assets.heatTrack, assets.heatThumb],
+  packingLive: [assets.bgFactory, assets.productBoxCropped, assets.productFrontCropped],
+  report: [assets.bgTerminal, assets.productBoxCropped, assets.productFrontCropped]
+};
+
+const imagePreloadCache = new Set<string>();
+const imageFilePattern = /\.(avif|gif|jpe?g|png|svg|webp)(\?|$)/i;
+
+function preloadImage(src: string, loading: "eager" | "lazy" = "eager") {
+  if (!src || imagePreloadCache.has(src) || !imageFilePattern.test(src)) return;
+  imagePreloadCache.add(src);
+
+  const image = new Image();
+  image.decoding = "async";
+  image.loading = loading;
+  image.src = src;
+
+  if (image.decode) {
+    void image.decode().catch(() => undefined);
+  }
+}
+
+function preloadPageImages(pageId: PageId, lookahead = 2, loading: "eager" | "lazy" = "eager") {
+  const pageIndex = h5PagePreloadOrder.indexOf(pageId);
+  const preloadPages =
+    pageIndex >= 0 ? h5PagePreloadOrder.slice(pageIndex, pageIndex + lookahead + 1) : [pageId];
+
+  preloadPages.forEach((page) => {
+    h5PageImagePreloadMap[page].forEach((src) => preloadImage(src, loading));
+  });
+}
+
+function scheduleIdlePreload(task: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+
+  const idleWindow = window as IdleWindow;
+  let cancelled = false;
+  const runTask = () => {
+    if (!cancelled) task();
+  };
+
+  if (idleWindow.requestIdleCallback) {
+    const handle = idleWindow.requestIdleCallback(runTask, { timeout: 1600 });
+    return () => {
+      cancelled = true;
+      idleWindow.cancelIdleCallback?.(handle);
+    };
+  }
+
+  const handle = window.setTimeout(runTask, 260);
+  return () => {
+    cancelled = true;
+    window.clearTimeout(handle);
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -168,31 +272,10 @@ function App() {
   );
 
   useEffect(() => {
-    const preloadSources = [
-      assets.homePlatform,
-      assets.homeMascot,
-      assets.homePanelOnline,
-      assets.homePanelPlan,
-      assets.homePanelBread,
-      assets.homePanelScan,
-      assets.homePanelComplete
-    ];
-
-    const preloadedImages = preloadSources.map((src) => {
-      const image = new Image();
-      image.decoding = "async";
-      image.loading = "eager";
-      image.src = src;
-      if (image.decode) {
-        void image.decode().catch(() => undefined);
-      }
-      return image;
-    });
-
-    return () => {
-      preloadedImages.length = 0;
-    };
+    preloadPageImages("home", 1, "eager");
   }, []);
+
+  useEffect(() => scheduleIdlePreload(() => preloadPageImages(page, 2)), [page]);
 
   const solution = selectedBug ?? bugOptions[0];
 

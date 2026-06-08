@@ -11,6 +11,8 @@
     "perf:lighthouse": "lhci autorun",
     "perf:h5:dev": "node scripts/perf-h5.mjs --serve-dev --port 5176 --label dev-5176",
     "perf:h5:prod": "npm run build && node scripts/perf-h5.mjs --serve-prod --port 4176 --label prod-preview",
+    "perf:h5:canvas": "node scripts/perf-h5.mjs --serve-dev --port 5176 --label canvas-640 --canvas",
+    "perf:h5:mobile-low": "node scripts/perf-h5.mjs --serve-dev --port 5176 --label mobile-low --canvas --mobile-low --cpu-throttle 2",
     "perf:h5": "npm run perf:h5:dev && npm run perf:h5:prod",
     "smoke:mobile": "node scripts/playwright-smoke.mjs",
     "assets:audit": "node scripts/asset-audit.mjs",

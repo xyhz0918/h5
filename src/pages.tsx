@@ -827,9 +827,32 @@ export function IngredientScanPage({
   const [armedIngredientId, setArmedIngredientId] = useState<string | null>(null);
   const [coreArmed, setCoreArmed] = useState(false);
   const [ingestEffect, setIngestEffect] = useState<{ id: string; tick: number } | null>(null);
+  const sourceCoreDropzoneRef = useRef<HTMLDivElement>(null);
+  const sourceDragStateRef = useRef<{
+    id: string;
+    pointerId: number;
+    element: HTMLElement;
+    startX: number;
+    startY: number;
+    dropRect: DOMRect;
+    hasMoved: boolean;
+    isInsideCore: boolean;
+  } | null>(null);
+  const sourceDragFrameRef = useRef(0);
+  const sourceDragTransformRef = useRef<{ element: HTMLElement; x: number; y: number } | null>(null);
+  const suppressIngredientClickRef = useRef(false);
+
   useEffect(() => {
     ingredientIdsRef.current = acceptedIngredientIds;
   });
+
+  useEffect(() => {
+    return () => {
+      window.cancelAnimationFrame(sourceDragFrameRef.current);
+      sourceDragStateRef.current = null;
+      sourceDragTransformRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!ingestEffect) return undefined;
@@ -861,6 +884,125 @@ export function IngredientScanPage({
     }
     setNotice(`${ingredient.feedback} SOURCE DATA ACCEPTED / 原料数据已录入。`);
   };
+  const writeSourceDragTransform = (element: HTMLElement, x: number, y: number) => {
+    sourceDragTransformRef.current = { element, x, y };
+    if (sourceDragFrameRef.current) return;
+
+    sourceDragFrameRef.current = window.requestAnimationFrame(() => {
+      sourceDragFrameRef.current = 0;
+      const transform = sourceDragTransformRef.current;
+      if (!transform) return;
+
+      transform.element.style.setProperty("--source-drag-x", `${transform.x}px`);
+      transform.element.style.setProperty("--source-drag-y", `${transform.y}px`);
+    });
+  };
+
+  const resetSourceDragTransform = (element: HTMLElement) => {
+    window.cancelAnimationFrame(sourceDragFrameRef.current);
+    sourceDragFrameRef.current = 0;
+    sourceDragTransformRef.current = null;
+    element.style.removeProperty("--source-drag-x");
+    element.style.removeProperty("--source-drag-y");
+  };
+
+  const isPointInsideRect = (event: ReactPointerEvent<HTMLElement>, rect: DOMRect, padding = 28) =>
+    event.clientX >= rect.left - padding &&
+    event.clientX <= rect.right + padding &&
+    event.clientY >= rect.top - padding &&
+    event.clientY <= rect.bottom + padding;
+
+  const finishIngredientPointerDrag = (event: ReactPointerEvent<HTMLElement>, shouldAccept: boolean) => {
+    const dragState = sourceDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+    sourceDragStateRef.current = null;
+    resetSourceDragTransform(dragState.element);
+    setCoreArmed(false);
+    setArmedIngredientId(null);
+
+    try {
+      dragState.element.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+
+    if (dragState.hasMoved) {
+      suppressIngredientClickRef.current = true;
+      window.setTimeout(() => {
+        suppressIngredientClickRef.current = false;
+      }, 0);
+    }
+
+    if (shouldAccept) {
+      acceptIngredient(dragState.id);
+    }
+  };
+
+  const handleIngredientPointerDown = (
+    event: ReactPointerEvent<HTMLElement>,
+    item: (typeof ingredients)[number],
+    accepted: boolean
+  ) => {
+    if (accepted) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    const dropRect = sourceCoreDropzoneRef.current?.getBoundingClientRect();
+    if (!dropRect) return;
+
+    const element = event.currentTarget;
+    element.focus({ preventScroll: true });
+
+    sourceDragStateRef.current = {
+      id: item.id,
+      pointerId: event.pointerId,
+      element,
+      startX: event.clientX,
+      startY: event.clientY,
+      dropRect,
+      hasMoved: false,
+      isInsideCore: false
+    };
+
+    writeSourceDragTransform(element, 0, 0);
+    setArmedIngredientId(item.id);
+    setCoreArmed(false);
+
+    try {
+      element.setPointerCapture(event.pointerId);
+    } catch {
+      // Some older WebViews do not allow capture on synthetic pointer events.
+    }
+  };
+
+  const handleIngredientPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    const dragState = sourceDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+    const deltaX = event.clientX - dragState.startX;
+    const deltaY = event.clientY - dragState.startY;
+    const hasMoved = Math.abs(deltaX) + Math.abs(deltaY) > 4;
+    dragState.hasMoved = dragState.hasMoved || hasMoved;
+
+    if (dragState.hasMoved) {
+      event.preventDefault();
+      writeSourceDragTransform(dragState.element, deltaX, deltaY);
+    }
+
+    const isInsideCore = isPointInsideRect(event, dragState.dropRect);
+    if (isInsideCore !== dragState.isInsideCore) {
+      dragState.isInsideCore = isInsideCore;
+      setCoreArmed(isInsideCore);
+    }
+  };
+
+  const handleIngredientPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+    const dragState = sourceDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+    finishIngredientPointerDrag(event, dragState.hasMoved && isPointInsideRect(event, dragState.dropRect));
+  };
+
   const ingestParticles = [
     ["-96px", "-112px"],
     ["88px", "-104px"],
@@ -872,25 +1014,22 @@ export function IngredientScanPage({
     ["32px", "122px"]
   ];
   const renderIngredientCard = (item: (typeof ingredients)[number]) => {
-    const accepted = ingredientIds.includes(item.id);
+    const accepted = acceptedIngredientIds.includes(item.id);
 
     return (
       <article
         className={`source-data-card source-image-card source-pos-${item.slot} ${accepted ? "accepted" : ""} ${armedIngredientId === item.id ? "is-dragging" : ""}`}
         data-ingredient={item.id}
-        draggable={!accepted}
+        draggable={false}
         key={item.id}
         onClick={(event) => {
+          if (suppressIngredientClickRef.current) {
+            event.preventDefault();
+            return;
+          }
+
           event.preventDefault();
           acceptIngredient(item.id);
-        }}
-        onDragStart={(event) => {
-          event.dataTransfer.setData("text/plain", item.id);
-          setArmedIngredientId(item.id);
-        }}
-        onDragEnd={() => {
-          setArmedIngredientId(null);
-          setCoreArmed(false);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -898,10 +1037,15 @@ export function IngredientScanPage({
             acceptIngredient(item.id);
           }
         }}
+        onPointerCancel={(event) => finishIngredientPointerDrag(event, false)}
+        onPointerDown={(event) => handleIngredientPointerDown(event, item, accepted)}
+        onPointerMove={handleIngredientPointerMove}
+        onPointerUp={handleIngredientPointerUp}
+        aria-disabled={accepted}
         role="button"
         tabIndex={0}
       >
-        <img src={item.image} alt={item.name} draggable={false} />
+        <img src={item.image} alt={item.name} draggable={false} decoding="async" loading="eager" />
         <span className="source-card-state">{accepted ? "已录入" : "拖入 / 点击"}</span>
       </article>
     );
@@ -919,23 +1063,8 @@ export function IngredientScanPage({
           <div
             className="source-core"
             aria-label="透明搅拌核心，拖入原料数据卡读取"
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setCoreArmed(true);
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                setCoreArmed(false);
-              }
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              setCoreArmed(false);
-              acceptIngredient(event.dataTransfer.getData("text/plain"));
-            }}
           >
-            <div className="source-core-dropzone" aria-hidden="true" />
+            <div ref={sourceCoreDropzoneRef} className="source-core-dropzone" aria-hidden="true" />
             {ingestEffect && (
               <div
                 className="source-ingest-effect"
@@ -1992,8 +2121,8 @@ export function ReportPage({ go, order, notice, solution, saveReport, shareRepor
         <section className="report-hero-panel">
           <div className="report-product-stage">
             <i className="report-product-halo" aria-hidden="true" />
-            <img className="report-product-box" src={assets.productBoxCropped} alt="豪士藜麦吐司盒装" />
-            <img className="report-product-front" src={assets.productFrontCropped} alt="豪士藜麦吐司产品正面" />
+            <img className="report-product-box" src={assets.productBoxCropped} alt="豪士藜麦吐司盒装" decoding="async" loading="eager" />
+            <img className="report-product-front" src={assets.productFrontCropped} alt="豪士藜麦吐司产品正面" decoding="async" loading="eager" />
           </div>
           <div className="report-verdict">
             <span>透明结论</span>
