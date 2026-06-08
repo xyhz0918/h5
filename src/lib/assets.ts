@@ -1,25 +1,20 @@
 export const assets = {
   logoCompact: new URL("../../assets/brand/logo/horsh-logo-compact.png", import.meta.url).href,
-  logoPrimary: new URL("../../assets/brand/logo/horsh-logo-primary.png", import.meta.url).href,
   bgPortal: new URL("../../assets/images/backgrounds/bg-portal-platform.webp", import.meta.url).href,
   bgCards: new URL("../../assets/images/backgrounds/bg-card-slots.webp", import.meta.url).href,
   bgFactory: new URL("../../assets/images/backgrounds/bg-factory-line.webp", import.meta.url).href,
   bgToastLab: new URL("../../assets/images/backgrounds/bg-toast-lab.webp", import.meta.url).href,
   bgTerminal: new URL("../../assets/images/backgrounds/bg-terminal-corridor.webp", import.meta.url).href,
-  bgShield: new URL("../../assets/images/backgrounds/bg-shield-platform.webp", import.meta.url).href,
-  homePlatform: new URL("../../assets/images/home/home-platform.webp", import.meta.url).href,
+  homePlatform: new URL("../../assets/images/home/home-platform-optimized.webp", import.meta.url).href,
   homeMascot: new URL("../../assets/images/home/home-mascot.webp", import.meta.url).href,
   homePanelOnline: new URL("../../assets/images/home/home-panel-online.webp", import.meta.url).href,
   homePanelPlan: new URL("../../assets/images/home/home-panel-plan.webp", import.meta.url).href,
   homePanelBread: new URL("../../assets/images/home/home-panel-bread.webp", import.meta.url).href,
   homePanelScan: new URL("../../assets/images/home/home-panel-scan.webp", import.meta.url).href,
   homePanelComplete: new URL("../../assets/images/home/home-panel-complete.webp", import.meta.url).href,
-  mascotRepair: new URL("../../assets/images/mascot/mascot-repair-master.webp", import.meta.url).href,
   mascotField: new URL("../../assets/images/mascot/mascot-field-agent_attr1_subject.webp", import.meta.url).href,
-  mascotOperator: new URL("../../assets/images/mascot/mascot-operator-terminal-v7.webp", import.meta.url).href,
-  mascotScan: new URL("../../assets/images/mascot/mascot-toast-scan.webp", import.meta.url).href,
-  mascotGuardian: new URL("../../assets/images/mascot/mascot-guardian-shield.webp", import.meta.url).href,
-  factoryCutout: new URL("../../assets/images/factory/haoshi-transparent-factory-cutout.webp", import.meta.url).href,
+  mascotOperator: new URL("../../assets/images/mascot/mascot-operator-terminal-v7-optimized.webp", import.meta.url).href,
+  factoryCutout: new URL("../../assets/images/factory/haoshi-transparent-factory-cutout-optimized.webp", import.meta.url).href,
   ingredientMixer: new URL("../../assets/images/ingredient/mixing-core-transparent.webp", import.meta.url).href,
   ingredientCardGluten: new URL("../../assets/images/ui/图层 1.webp", import.meta.url).href,
   ingredientCardYeast: new URL("../../assets/images/ui/图层 2.webp", import.meta.url).href,
@@ -36,10 +31,7 @@ export const assets = {
   proofingMarkerLow: new URL("../../assets/images/proofing/slider-marker-low-green.webp", import.meta.url).href,
   proofingMarkerIdeal: new URL("../../assets/images/proofing/slider-marker-ideal-yellowgreen.webp", import.meta.url).href,
   proofingMarkerHigh: new URL("../../assets/images/proofing/slider-marker-deviated-orange.webp", import.meta.url).href,
-  badgeRepair: new URL(
-    "../../assets/images/badges/badge-repair-success-transparent.webp",
-    import.meta.url
-  ).href,
-  productBox: new URL("../../assets/product/quinoa-toast/box-420g-3d.png", import.meta.url).href,
-  productFront: new URL("../../assets/product/quinoa-toast/pouch-front.png", import.meta.url).href
+  packageModel: new URL("../../assets/models/bread-package-optimized-lite.glb", import.meta.url).href,
+  productBoxCropped: new URL("../../assets/product/quinoa-toast/box-420g-3d-cropped.webp", import.meta.url).href,
+  productFrontCropped: new URL("../../assets/product/quinoa-toast/pouch-front-cropped.webp", import.meta.url).href
 };

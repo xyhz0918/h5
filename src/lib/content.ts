@@ -89,8 +89,8 @@ export const bugOptions: BugOption[] = [
 
 export const flowSteps = [
   { label: "识别困扰", icon: Bug },
-  { label: "数据接入", icon: ClipboardList },
-  { label: "工艺验证", icon: Factory },
+  { label: "进入工厂", icon: ClipboardList },
+  { label: "完成验证", icon: Factory },
   { label: "生成报告", icon: ScanLine }
 ];
 

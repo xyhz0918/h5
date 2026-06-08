@@ -1,6 +1,13 @@
 node_modules/
 dist/
 .vite/
+reports/
+.lighthouseci/
+.playwright-cli/
+output/playwright/
+output/perf/
+test-results/
+.codex-vite*.log
 *.local
 .vercel
 .codegraph/

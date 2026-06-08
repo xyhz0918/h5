@@ -293,26 +293,72 @@ export function LoadingPage({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mascotCodeCanvasRef = useRef<HTMLCanvasElement>(null);
+  const countdownRef = useRef<HTMLDivElement>(null);
   const isExitingRef = useRef(isExiting);
-  const [progress, setProgress] = useState(0);
+  const [statusPhase, setStatusPhase] = useState(0);
+  const [countdown, setCountdown] = useState(3);
+  const [typedEntryStatus, setTypedEntryStatus] = useState("");
   const hasCompletedRef = useRef(false);
   const designScale = useDesignCanvasScale();
   const loadingDurationMs = 3000;
-  const countdown = Math.max(0, Math.ceil((100 - progress) / 100 * 3));
-  const entryStatus =
-    progress < 34
-      ? "\u65e9\u9910\u5c0f BUG \u63a5\u5165\u4e2d"
-      : progress < 68
-        ? "\u900f\u660e\u5de5\u5382\u63a5\u5165\u4e2d"
-        : "\u8c6a\u5c0f\u58eb\u51c6\u5907\u5c31\u7eea";
+  const typewriterSpeedMs = 46;
+  const entryStatuses = [
+    "\u65e9\u9910\u5c0f BUG \u63a5\u5165\u4e2d",
+    "\u900f\u660e\u5de5\u5382\u63a5\u5165\u4e2d",
+    "\u8c6a\u5c0f\u58eb\u51c6\u5907\u5c31\u7eea"
+  ];
+  const entryStatus = entryStatuses[statusPhase];
 
   useEffect(() => {
     isExitingRef.current = isExiting;
   }, [isExiting]);
 
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setTypedEntryStatus(entryStatus);
+      return;
+    }
+
+    const timers: number[] = [];
+    setTypedEntryStatus("");
+
+    Array.from(entryStatus).forEach((_, index) => {
+      timers.push(
+        window.setTimeout(() => {
+          setTypedEntryStatus(entryStatus.slice(0, index + 1));
+        }, 80 + index * typewriterSpeedMs)
+      );
+    });
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [entryStatus]);
+
+  useEffect(() => {
     const progressValue = { value: 0 };
     let lastProgress = -1;
+    let lastStatusPhase = 0;
+    let lastCountdown = 3;
+
+    const updateDisplayProgress = (nextProgress: number) => {
+      countdownRef.current?.style.setProperty("--countdown-progress", `${nextProgress}%`);
+
+      const nextStatusPhase = nextProgress < 34 ? 0 : nextProgress < 68 ? 1 : 2;
+      if (nextStatusPhase !== lastStatusPhase) {
+        lastStatusPhase = nextStatusPhase;
+        setStatusPhase(nextStatusPhase);
+      }
+
+      const nextCountdown = Math.max(0, Math.ceil((100 - nextProgress) / 100 * 3));
+      if (nextCountdown !== lastCountdown) {
+        lastCountdown = nextCountdown;
+        setCountdown(nextCountdown);
+      }
+    };
+
+    updateDisplayProgress(0);
+
     const tween = gsap.to(progressValue, {
       value: 100,
       duration: loadingDurationMs / 1000,
@@ -322,10 +368,10 @@ export function LoadingPage({
         if (nextProgress === lastProgress) return;
 
         lastProgress = nextProgress;
-        setProgress(nextProgress);
+        updateDisplayProgress(nextProgress);
       },
       onComplete: () => {
-        setProgress(100);
+        updateDisplayProgress(100);
         if (!hasCompletedRef.current) {
           hasCompletedRef.current = true;
           onEnter();
@@ -337,13 +383,6 @@ export function LoadingPage({
       tween.kill();
     };
   }, [onEnter]);
-
-  useEffect(() => {
-    if (progress >= 100 && !hasCompletedRef.current) {
-      hasCompletedRef.current = true;
-      onEnter();
-    }
-  }, [onEnter, progress]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -359,6 +398,9 @@ export function LoadingPage({
     let columnOffsets: number[] = [];
     let columnPhrases: string[][] = [];
     let streamTokens: string[][] = [];
+    let canvasWidth = 0;
+    let canvasHeight = 0;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const fontSize = 14;
     const columnWidth = 22;
     const intervalMs = 76;
@@ -387,8 +429,8 @@ export function LoadingPage({
 
     const resize = () => {
       const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
-      const canvasWidth = canvas.clientWidth;
-      const canvasHeight = canvas.clientHeight;
+      canvasWidth = canvas.clientWidth;
+      canvasHeight = canvas.clientHeight;
       canvas.width = Math.floor(canvasWidth * pixelRatio);
       canvas.height = Math.floor(canvasHeight * pixelRatio);
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
@@ -422,11 +464,8 @@ export function LoadingPage({
         return;
       }
 
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
-
       context.fillStyle = "rgba(0, 0, 0, 0.44)";
-      context.fillRect(0, 0, width, height);
+      context.fillRect(0, 0, canvasWidth, canvasHeight);
       context.textBaseline = "top";
       context.textAlign = "center";
 
@@ -437,7 +476,7 @@ export function LoadingPage({
           const token = streamTokens[index]?.[tail] ?? pickMatrixToken(false);
           const y = (drops[index] - tail) * fontSize;
 
-          if (y < -fontSize || y > height + fontSize) continue;
+          if (y < -fontSize || y > canvasHeight + fontSize) continue;
 
           const isStoryToken = matrixStoryTokens.includes(token) || /[^\x00-\x7F]/.test(token);
           const alpha = tail === 0 ? 0.94 : Math.max(0.07, 0.5 - tail * 0.052);
@@ -460,7 +499,7 @@ export function LoadingPage({
         }
 
         drops[index] += speeds[index];
-        if ((drops[index] - streamLengths[index]) * fontSize > height && Math.random() > 0.94) {
+        if ((drops[index] - streamLengths[index]) * fontSize > canvasHeight && Math.random() > 0.94) {
           drops[index] = Math.random() * -18;
           speeds[index] = 0.24 + Math.random() * 0.22;
           streamLengths[index] = 9 + Math.floor(Math.random() * 7);
@@ -475,7 +514,7 @@ export function LoadingPage({
     };
 
     const startRain = () => {
-      if (rainTimer === null && shouldDraw()) {
+      if (!prefersReducedMotion && rainTimer === null && shouldDraw()) {
         rainTimer = window.setInterval(draw, intervalMs);
       }
     };
@@ -528,6 +567,7 @@ export function LoadingPage({
     let lastDrawTime = 0;
     let width = 0;
     let height = 0;
+    const animationDurationMs = 3000;
 
     const mascotTokens = [
       "0",
@@ -592,7 +632,10 @@ export function LoadingPage({
     const shouldDraw = () => !disposed && !isExitingRef.current && document.visibilityState === "visible";
 
     const draw = (time: number) => {
-      if (!shouldDraw()) return;
+      if (!shouldDraw()) {
+        rafId = 0;
+        return;
+      }
       if (!startTime) startTime = time;
       if (time - lastDrawTime < 28) {
         rafId = window.requestAnimationFrame(draw);
@@ -600,7 +643,7 @@ export function LoadingPage({
       }
       lastDrawTime = time;
 
-      const progressRatio = Math.min(1, (time - startTime) / 3000);
+      const progressRatio = Math.min(1, (time - startTime) / animationDurationMs);
       const fade = 1;
 
       context.clearRect(0, 0, width, height);
@@ -625,8 +668,10 @@ export function LoadingPage({
       }
 
       context.shadowBlur = 0;
-      if (fade > 0) {
+      if (fade > 0 && progressRatio < 1) {
         rafId = window.requestAnimationFrame(draw);
+      } else {
+        rafId = 0;
       }
     };
 
@@ -687,12 +732,16 @@ export function LoadingPage({
             <div className="matrix-entry-copy">
               <span className="matrix-system-kicker">HORSH TRANSPARENT FACTORY</span>
               <h1>{"\u4f60\u6b63\u5728\u8fdb\u5165\u8c6a\u58eb\u900f\u660e\u5de5\u5382"}</h1>
-              <p className="matrix-entry-status">{entryStatus}</p>
+              <p className="matrix-entry-status">
+                <span>{typedEntryStatus}</span>
+                <i aria-hidden="true" />
+              </p>
               <div
+                ref={countdownRef}
                 className="matrix-simple-countdown"
                 aria-live="polite"
                 aria-label={`\u5012\u8ba1\u65f6 ${countdown}`}
-                style={{ "--countdown-progress": `${progress}%` } as CSSProperties}
+                style={{ "--countdown-progress": "0%" } as CSSProperties}
               >
                 <span>T-{String(countdown).padStart(2, "0")}</span>
               </div>

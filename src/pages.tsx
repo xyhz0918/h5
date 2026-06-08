@@ -2,36 +2,110 @@ import {
   Check,
   CheckCircle2,
   ClipboardList,
-  Clock3,
   Download,
   Droplet,
   Factory,
-  Heart,
   HeartPulse,
   Leaf,
-  LockKeyhole,
-  MoreHorizontal,
-  PackageOpen,
   ScanLine,
   Share2,
   ShieldCheck,
+  ShoppingCart,
   SlidersHorizontal,
   Sparkles,
   Thermometer,
   Timer,
-  Utensils,
   Wheat,
-  Wrench,
-  Zap,
   type LucideIcon
 } from "lucide-react";
 import gsap from "gsap";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties, Dispatch, PointerEvent as ReactPointerEvent, SetStateAction } from "react";
-import { CompletionModal, FlowNav, GlowButton, InfoRows, Notice, OperationFlow, PageTitle, Panel, Progress, Screen, TopBar } from "./components/ui";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { CompletionModal, FlowNav, GlowButton, InfoRows, OperationFlow, PageTitle, Panel, Progress, Screen, TopBar } from "./components/ui";
+import type { PackageModelViewerHandle } from "./components/PackageModelViewer";
 import { assets } from "./lib/assets";
 import { bugOptions } from "./lib/content";
 import type { FactoryAreaId, PageProps } from "./types";
+
+const descriptionPrompts = [
+  "7:40 地铁口排队，想快点拿一份不噎的早餐。",
+  "刚到办公室，只想有一口松软、安心、能马上吃的吐司。",
+  "早课前十分钟，早餐来不及准备，希望拆开就能吃。",
+  "运动后有点饿，想要轻负担但能顶一上午的选择。",
+  "周末想慢慢吃早餐，希望口感更柔软、配料更清楚。",
+  "路上包和手机都带了，早餐却还没找到合适入口。"
+];
+
+const loadPackageModelViewer = () => import("./components/PackageModelViewer");
+
+const PackageModelViewer = lazy(() =>
+  loadPackageModelViewer().then((module) => ({ default: module.PackageModelViewer }))
+);
+
+const packageModelPreloadPromises = new Map<string, Promise<unknown>>();
+
+function scheduleIdleTask(task: () => void) {
+  if (typeof window === "undefined") return;
+
+  const win = window as Window & typeof globalThis & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  };
+
+  if (typeof win.requestIdleCallback === "function") {
+    win.requestIdleCallback(task, { timeout: 1200 });
+    return;
+  }
+
+  window.setTimeout(task, 350);
+}
+
+function preloadPackageModelAssets(modelSrc: string) {
+  if (typeof window === "undefined" || !modelSrc) return;
+
+  scheduleIdleTask(() => {
+    if (packageModelPreloadPromises.has(modelSrc)) return;
+
+    const preloadPromise = loadPackageModelViewer().then((module) => module.preloadPackageModel(modelSrc)).catch(() => {
+      packageModelPreloadPromises.delete(modelSrc);
+    });
+    packageModelPreloadPromises.set(modelSrc, preloadPromise);
+  });
+}
+
+function compactNotice(message: string, maxLength = 34) {
+  const trimmed = message.trim();
+  if (!trimmed) return "";
+  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength)}...` : trimmed;
+}
+
+function randomDescriptionPromptIndex(current = -1) {
+  if (descriptionPrompts.length <= 1) return 0;
+
+  let next = current;
+  while (next === current) {
+    next = Math.floor(Math.random() * descriptionPrompts.length);
+  }
+  return next;
+}
+
+function useDocumentVisible() {
+  const [visible, setVisible] = useState(() =>
+    typeof document === "undefined" ? true : document.visibilityState === "visible"
+  );
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setVisible(document.visibilityState === "visible");
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  return visible;
+}
 
 function HomeImagePanel({
   src,
@@ -50,12 +124,13 @@ function HomeImagePanel({
   );
 }
 
-export function HomePage({ go, notice, transitionPhase, homeArrivalActive, homeRepairActive }: PageProps) {
+export function HomePage({ go, transitionPhase, homeArrivalActive, homeRepairActive }: PageProps) {
   return (
     <Screen
       background={assets.bgPortal}
       className={`home-page transition-${transitionPhase} ${homeArrivalActive ? "home-arrival" : ""} ${homeRepairActive ? "home-repair-active" : ""}`}
       entranceMotion={false}
+      motionLayer
     >
       <TopBar />
 
@@ -80,7 +155,7 @@ export function HomePage({ go, notice, transitionPhase, homeArrivalActive, homeR
         }
         titleClassName="glitch-title is-glitching"
         titleDataText="检测到一个早餐小 BUG"
-        subtitle="把你的早餐问题送进豪士透明工厂，看见好吃如何生成。"
+        subtitle="豪士藜麦吐司，好吃看得见。选一个早餐 BUG，进工厂完成透明验证。"
       />
 
       <section className="warning-carousel" aria-label="早餐问题预警">
@@ -95,20 +170,18 @@ export function HomePage({ go, notice, transitionPhase, homeArrivalActive, homeR
         </div>
       </section>
 
-      <p className="story-copy">进入豪士透明工厂后台，看见好吃如何生成。</p>
+      <p className="story-copy">3 步完成：识别困扰 / 工厂验证 / 生成报告。</p>
 
       <div className="bottom-actions">
-        <GlowButton onClick={() => go("select")}>送进豪士透明工厂</GlowButton>
+        <GlowButton onClick={() => go("select")}>开始透明验证</GlowButton>
         <FlowNav active={0} />
       </div>
-      <Notice text={notice} />
     </Screen>
   );
 }
 
 export function SelectPage({
   go,
-  notice,
   selectedBugId,
   selectedBug,
   description,
@@ -132,6 +205,8 @@ export function SelectPage({
     dragging: boolean;
   } | null>(null);
   const suppressCardClickRef = useRef(false);
+  const descriptionPromptRefreshRef = useRef(Number.NEGATIVE_INFINITY);
+  const [descriptionPromptIndex, setDescriptionPromptIndex] = useState(() => randomDescriptionPromptIndex());
   const mascotStateClass = "";
 
   const clampBugIndex = (index: number) => Math.min(Math.max(index, 0), bugOptions.length - 1);
@@ -170,6 +245,16 @@ export function SelectPage({
     }
     animateBugCards(nextIndex, immediate);
   }, [animateBugCards, selectBug]);
+
+  const refreshDescriptionPrompt = useCallback(() => {
+    if (description.trim()) return;
+
+    const now = window.performance.now();
+    if (now - descriptionPromptRefreshRef.current < 120) return;
+
+    descriptionPromptRefreshRef.current = now;
+    setDescriptionPromptIndex((current) => randomDescriptionPromptIndex(current));
+  }, [description]);
 
   useLayoutEffect(() => {
     const selectedIndex = selectedBugId ? bugOptions.findIndex((bug) => bug.id === selectedBugId) : -1;
@@ -271,7 +356,7 @@ export function SelectPage({
       <PageTitle
         label="早餐小 BUG 选择器"
         title="请选择你的早餐困扰"
-        subtitle="选定一个早餐小 BUG，豪士透明工厂将匹配对应工艺。"
+        subtitle="滑动或点击选定一个早餐 BUG，豪士藜麦吐司，好吃看得见。"
       />
 
       <section
@@ -315,7 +400,7 @@ export function SelectPage({
         <Panel className="bug-diagnosis">
           <span>早餐小 BUG 已选定</span>
           <b>{selectedBug.orderLabel}</b>
-          <p>正在接入豪士透明工厂。推荐方案：{selectedBug.recommendation}</p>
+          <p>即将接入豪士透明工厂。推荐方案：{selectedBug.recommendation}</p>
         </Panel>
       )}
 
@@ -326,7 +411,9 @@ export function SelectPage({
           value={description}
           maxLength={100}
           onChange={(event) => setDescription(event.target.value)}
-          placeholder="可以补充时间、地点、节奏，页面会生成早餐问题档案。"
+          onFocus={refreshDescriptionPrompt}
+          onPointerDown={refreshDescriptionPrompt}
+          placeholder={descriptionPrompts[descriptionPromptIndex]}
         />
         <em>{description.length}/100</em>
       </Panel>
@@ -335,20 +422,20 @@ export function SelectPage({
         <GlowButton onClick={submitBug} disabled={!selectedBug}>
           {selectedBug ? "生成我的早餐问题档案" : "先选择一个早餐困扰"}
         </GlowButton>
-        <p className="tiny-tip">选定一个早餐小 BUG 后，将接入豪士透明工厂后台</p>
+        <p className="tiny-tip">
+          {selectedBug ? "已选定早餐困扰，可以生成问题档案" : "先滑动或点击选择一个早餐困扰"}
+        </p>
       </div>
-      <Notice text={notice} />
     </Screen>
   );
 }
 
-export function WorkOrderPage({ go, order, notice, solution, unlockStage }: PageProps) {
+export function WorkOrderPage({ go, order, solution, unlockStage }: PageProps) {
   const [readProgress, setReadProgress] = useState(0);
   const readTweenRef = useRef<ReturnType<typeof gsap.to> | null>(null);
   const readProgressValueRef = useRef({ value: 0 });
   const readCompletedRef = useRef(false);
   const orderReady = readProgress >= 100;
-  const stampStatus = orderReady ? "已开启" : "接入中";
 
   useEffect(() => {
     readCompletedRef.current = false;
@@ -359,7 +446,7 @@ export function WorkOrderPage({ go, order, notice, solution, unlockStage }: Page
     readTweenRef.current?.kill();
     readTweenRef.current = gsap.to(readProgressValueRef.current, {
       value: 100,
-      duration: 4.2,
+      duration: 2.4,
       ease: "none",
       onUpdate: () => {
         if (readCompletedRef.current) return;
@@ -395,7 +482,7 @@ export function WorkOrderPage({ go, order, notice, solution, unlockStage }: Page
   return (
     <Screen background={assets.bgFactory} className={`order-page ${orderReady ? "is-ready" : ""}`}>
       <TopBar onBack={() => go("select")} progress="03 / 09" />
-      <PageTitle label="FACTORY BACKEND ACCESS" title="豪士透明工厂后台已接入" subtitle="早餐问题数据正在传输，五大透明控制舱准备验证。" />
+      <PageTitle label="FACTORY BACKEND ACCESS" title="豪士透明工厂后台已接入" subtitle="早餐问题数据正在传输，接下来用五个任务证明好吃看得见。" />
 
       <div className="order-factory-layer" aria-hidden="true">
         <img src={assets.factoryCutout} alt="" />
@@ -408,7 +495,7 @@ export function WorkOrderPage({ go, order, notice, solution, unlockStage }: Page
             <ClipboardList size={20} />
             <span>透明工厂接入中</span>
           </div>
-          <p>点击当前档案区，确认早餐小 BUG 进入工厂控制台。</p>
+          <p>工单已入库，透明工厂正在同步早餐 BUG 数据。</p>
         </div>
 
         <div className="work-order">
@@ -427,7 +514,7 @@ export function WorkOrderPage({ go, order, notice, solution, unlockStage }: Page
               ["优先级", order.priority]
             ]}
           />
-          <span className={`stamp ${orderReady ? "ready" : ""}`}>{stampStatus}</span>
+          <Progress label={orderReady ? "档案接入完成" : "档案接入进度"} value={readProgress} compact />
         </div>
       </section>
 
@@ -443,11 +530,10 @@ export function WorkOrderPage({ go, order, notice, solution, unlockStage }: Page
             go("ingredientScan");
           }}
         >
-          {orderReady ? "进入原料数据舱" : "早餐问题数据接入中..."}
+          {orderReady ? "进入原料数据舱" : "点击完成接入任务"}
         </GlowButton>
         <FlowNav active={1} />
       </div>
-      <Notice text={notice} />
     </Screen>
   );
 }
@@ -461,12 +547,23 @@ export function SoftRepairPage({
   setNotice,
   selectFactoryArea
 }: PageProps) {
+  const documentVisible = useDocumentVisible();
   const holdTimer = useRef<number | null>(null);
+  const holdActiveRef = useRef(false);
+  const repairChargeRef = useRef(repairCharge);
   const [isAwakening, setIsAwakening] = useState(false);
   const [pressFailed, setPressFailed] = useState(false);
   const [showSoftCompleteModal, setShowSoftCompleteModal] = useState(false);
   const softComplete = repairCharge >= 100;
+  const softInlineNotice = compactNotice(notice);
   const pressDistance = softComplete ? 36 : Math.min(35, Math.floor((repairCharge / 100) * 36));
+  const softActionLabel = softComplete
+    ? "进入恒温醒发舱"
+    : isAwakening
+      ? "压面中，继续按住"
+      : pressFailed
+        ? "重新按住启动压面机"
+        : "按住启动压面机";
   const tunnelNodes = [
     { meter: 0, label: "面团进入" },
     { meter: 12, label: "组织展开" },
@@ -474,9 +571,9 @@ export function SoftRepairPage({
     { meter: 36, label: "松软状态激活" }
   ] as const;
   const repairStatuses: Array<[string, string, string, LucideIcon]> = [
-    ["压面距离", `${pressDistance}m / 36m`, softComplete ? "压面完成" : "按住推进", Factory],
-    ["面团状态", softComplete ? "松软状态已激活" : "连续压延中", "36 米压面机运行中", Wheat],
-    ["组织结构", softComplete ? "松软结构完成" : "逐步展开", "压延数据同步", SlidersHorizontal],
+    ["压面距离", `${pressDistance}m / 36m`, softComplete ? "压面完成" : pressFailed ? "中途放开，已归零" : "按住推进", Factory],
+    ["面团状态", softComplete ? "松软状态已激活" : pressFailed ? "压面失败" : "连续压延中", pressFailed ? "请重新按住启动" : "36 米压面机运行中", Wheat],
+    ["组织结构", softComplete ? "松软结构完成" : pressFailed ? "结构未成型" : "逐步展开", "压延数据同步", SlidersHorizontal],
     ["松软值", softComplete ? "已满格" : "动态上升", `${repairCharge}%`, HeartPulse]
   ];
   const clearHold = () => {
@@ -485,44 +582,63 @@ export function SoftRepairPage({
       holdTimer.current = null;
     }
   };
+  const completeSoftRepair = () => {
+    holdActiveRef.current = false;
+    clearHold();
+    setIsAwakening(false);
+    setPressFailed(false);
+    setShowSoftCompleteModal(true);
+    setNotice("松软唤醒完成，松软状态已激活。");
+  };
   const advanceRepair = (step: number) => {
-    setRepairCharge((current) => {
-      const next = Math.min(100, current + step);
-      if (next >= 100) {
-        clearHold();
-        setIsAwakening(false);
-        setPressFailed(false);
-        setShowSoftCompleteModal(true);
-        setNotice("松软唤醒完成，松软状态已激活。");
-      }
-      return next;
-    });
+    if (repairChargeRef.current >= 100) return;
+
+    const next = Math.min(100, repairChargeRef.current + step);
+    repairChargeRef.current = next;
+    setRepairCharge(next);
+
+    if (next >= 100) {
+      completeSoftRepair();
+    }
   };
   const beginHold = () => {
     if (softComplete) {
       setShowSoftCompleteModal(true);
       return;
     }
+    if (holdTimer.current !== null) return;
+    holdActiveRef.current = true;
     setPressFailed(false);
     setIsAwakening(true);
     setNotice("按住启动压面机，面团正在进入松软唤醒舱。");
-    if (holdTimer.current !== null) return;
     holdTimer.current = window.setInterval(() => {
       advanceRepair(5);
     }, 70);
   };
   const stopHold = () => {
+    if (!holdActiveRef.current && holdTimer.current === null) return;
+    const wasHolding = holdActiveRef.current;
+    holdActiveRef.current = false;
     clearHold();
     setIsAwakening(false);
-    setRepairCharge((current) => {
-      if (current < 100) {
-        setPressFailed(true);
-        setNotice("压面中途停止，面团回到起点，请重新按住启动。");
-        return 0;
-      }
-      return current;
-    });
+    if (!wasHolding) return;
+    if (repairChargeRef.current < 100) {
+      repairChargeRef.current = 0;
+      setRepairCharge(0);
+      setPressFailed(true);
+      setNotice("压面中途停止，面团回到起点，请重新按住启动。");
+    }
   };
+
+  useEffect(() => {
+    repairChargeRef.current = repairCharge;
+  }, [repairCharge]);
+
+  useEffect(() => {
+    if (!documentVisible) {
+      stopHold();
+    }
+  }, [documentVisible]);
 
   useEffect(() => clearHold, []);
 
@@ -538,7 +654,7 @@ export function SoftRepairPage({
           style={
             {
               "--soft-progress": `${repairCharge}%`,
-              "--dough-left": `${6 + repairCharge * 0.68}%`
+              "--dough-left": `${12 + repairCharge * 0.74}%`
             } as CSSProperties
           }
         >
@@ -561,6 +677,10 @@ export function SoftRepairPage({
             <div className="tunnel-progress-line" aria-hidden="true">
               <i />
             </div>
+            <div className="press-progress-readout" aria-live="polite">
+              <b>{repairCharge}%</b>
+              <span>{pressDistance}m / 36m</span>
+            </div>
             <div className="proofing-steam">
               <span>PRESS</span>
               <span>36M</span>
@@ -579,11 +699,12 @@ export function SoftRepairPage({
               beginHold();
             }}
             onPointerUp={stopHold}
-            onPointerLeave={stopHold}
             onPointerCancel={stopHold}
           >
-            启动压面机
-            <small>{softComplete ? "松软状态已激活" : pressFailed ? "中途停止失败" : "按住压面"}</small>
+            <span>{softComplete ? "压面完成" : isAwakening ? "压面机运行中" : "按住启动压面机"}</span>
+            <small>
+              {softComplete ? "松软状态已激活" : (!isAwakening && softInlineNotice) || (isAwakening ? `${repairCharge}% / 松开会归零` : pressFailed ? "重新按住，从 0 米开始" : "持续按住直到 100%")}
+            </small>
           </button>
         </section>
       </Panel>
@@ -613,6 +734,7 @@ export function SoftRepairPage({
           }}
           onSecondary={() => {
             setShowSoftCompleteModal(false);
+            repairChargeRef.current = 0;
             setRepairCharge(0);
             setPressFailed(false);
             setNotice("重新按住启动压面机，面团将从 0 米开始进入松软唤醒舱。");
@@ -632,11 +754,10 @@ export function SoftRepairPage({
             go("proofingLive");
           }}
         >
-          进入恒温醒发舱
+          {softActionLabel}
         </GlowButton>
         <OperationFlow active={1} />
       </div>
-      <Notice text={notice} />
     </Screen>
   );
 }
@@ -697,13 +818,19 @@ export function IngredientScanPage({
     }
   ];
   const correctTotal = ingredients.length;
-  const acceptedIngredientIds = ingredientIds.filter((id) => ingredients.some((item) => item.id === id));
+  const acceptedIngredientIds = Array.from(new Set(ingredientIds.filter((id) => ingredients.some((item) => item.id === id))));
   const ingredientProgress = Math.round((acceptedIngredientIds.length / correctTotal) * 100);
   const sourceComplete = acceptedIngredientIds.length >= correctTotal;
+  const sourceInlineNotice = compactNotice(notice);
+  const ingredientIdsRef = useRef<string[]>(acceptedIngredientIds);
   const [showSourceCompleteModal, setShowSourceCompleteModal] = useState(false);
   const [armedIngredientId, setArmedIngredientId] = useState<string | null>(null);
   const [coreArmed, setCoreArmed] = useState(false);
   const [ingestEffect, setIngestEffect] = useState<{ id: string; tick: number } | null>(null);
+  useEffect(() => {
+    ingredientIdsRef.current = acceptedIngredientIds;
+  });
+
   useEffect(() => {
     if (!ingestEffect) return undefined;
 
@@ -717,13 +844,17 @@ export function IngredientScanPage({
   const acceptIngredient = (id: string) => {
     const ingredient = ingredients.find((item) => item.id === id);
     if (!ingredient) return;
-    if (ingredientIds.includes(id)) {
+
+    if (ingredientIdsRef.current.includes(id)) {
       setNotice("这张原料数据卡已经录入透明搅拌核心。");
       return;
     }
+
+    const nextIngredientIds = [...ingredientIdsRef.current, id];
+    ingredientIdsRef.current = nextIngredientIds;
     setIngestEffect({ id, tick: Date.now() });
-    setIngredientIds((current) => [...current, id]);
-    if (acceptedIngredientIds.length + 1 >= correctTotal) {
+    setIngredientIds((current) => (current.includes(id) ? current : [...current, id]));
+    if (nextIngredientIds.length >= correctTotal) {
       setShowSourceCompleteModal(true);
       setNotice("原料数据读取完成。好吃第一步，已看见。");
       return;
@@ -771,7 +902,7 @@ export function IngredientScanPage({
         tabIndex={0}
       >
         <img src={item.image} alt={item.name} draggable={false} />
-        <span className="source-card-state">{accepted ? "已录入" : "点击录入"}</span>
+        <span className="source-card-state">{accepted ? "已录入" : "拖入 / 点击"}</span>
       </article>
     );
   };
@@ -804,6 +935,7 @@ export function IngredientScanPage({
               acceptIngredient(event.dataTransfer.getData("text/plain"));
             }}
           >
+            <div className="source-core-dropzone" aria-hidden="true" />
             {ingestEffect && (
               <div
                 className="source-ingest-effect"
@@ -836,13 +968,13 @@ export function IngredientScanPage({
                 <>
                   <b>SOURCE CHECK COMPLETE</b>
                   <span>原料安心指数：100%</span>
-                  <small>{notice || "原料数据读取完成。好吃第一步，已看见。"}</small>
+                  <small>{sourceInlineNotice || "原料数据读取完成。好吃第一步，已看见。"}</small>
                 </>
               ) : (
                 <>
                   <b>SOURCE DATA ACCEPTED</b>
                   <span>原料数据已录入：{acceptedIngredientIds.length}/{correctTotal}</span>
-                  <small>{notice || "拖入原料卡至透明搅拌核心。"}</small>
+                  <small>{sourceInlineNotice || "拖入或点击原料卡，录入透明搅拌核心。"}</small>
                 </>
               )}
             </div>
@@ -867,6 +999,7 @@ export function IngredientScanPage({
           }}
           onSecondary={() => {
             setShowSourceCompleteModal(false);
+            ingredientIdsRef.current = [];
             setIngredientIds([]);
             setNotice(`重新读取原料数据，请拖入 ${correctTotal} 张原料数据卡。`);
           }}
@@ -895,6 +1028,10 @@ export function IngredientScanPage({
 }
 
 export function ProofingLivePage(props: PageProps) {
+  const proofingSliderRectRef = useRef<DOMRect | null>(null);
+  const proofingSliderBoardRef = useRef<HTMLDivElement>(null);
+  const proofingDraftRef = useRef({ temperature: 30, humidity: 72 });
+  const proofingCommitFrameRef = useRef(0);
   const [temperatureValue, setTemperatureValue] = useState(30);
   const [humidityValue, setHumidityValue] = useState(72);
   const [showProofingCompleteModal, setShowProofingCompleteModal] = useState(false);
@@ -909,32 +1046,87 @@ export function ProofingLivePage(props: PageProps) {
     temperatureValue < idealMin ? "偏低：醒发慢" : temperatureValue > idealMax ? "偏高：醒发过快" : "适合：醒发稳定";
   const humidityStatus =
     humidityValue < idealMin ? "偏低：面坯偏干" : humidityValue > idealMax ? "偏高：湿度过载" : "适合：湿度稳定";
-  const proofingHint =
+  const softnessScore = Math.round(
+    56 +
+      Math.max(0, 1 - Math.abs(temperatureValue - 51) / 51) * 13 +
+      Math.max(0, 1 - Math.abs(humidityValue - 51) / 51) * 13
+  );
+  const proofingInlineNotice = compactNotice(props.notice, 38);
+  const proofingHint = proofingInlineNotice || (
     !temperatureIdeal && !humidityIdeal
       ? "按住两个指针，拖进中间稳定区"
       : !temperatureIdeal
         ? "温度指针还没进稳定区"
         : !humidityIdeal
           ? "湿度指针还没进稳定区"
-          : "双参数已稳定，可以锁定";
-  const softnessScore = Math.round(
-    56 +
-      Math.max(0, 1 - Math.abs(temperatureValue - 51) / 51) * 13 +
-      Math.max(0, 1 - Math.abs(humidityValue - 51) / 51) * 13
+          : "双参数已稳定，可以锁定"
   );
   const markerFor = (value: number) => {
     if (value < idealMin) return assets.proofingMarkerLow;
     if (value > idealMax) return assets.proofingMarkerHigh;
     return assets.proofingMarkerIdeal;
   };
+  const writeProofingCssValue = (kind: "temperature" | "humidity", value: number) => {
+    proofingSliderBoardRef.current?.style.setProperty(
+      kind === "temperature" ? "--proof-temp" : "--proof-humidity",
+      `${value}%`
+    );
+  };
+  const commitProofingDraft = () => {
+    proofingCommitFrameRef.current = 0;
+    setTemperatureValue((current) =>
+      current === proofingDraftRef.current.temperature ? current : proofingDraftRef.current.temperature
+    );
+    setHumidityValue((current) =>
+      current === proofingDraftRef.current.humidity ? current : proofingDraftRef.current.humidity
+    );
+  };
+  const scheduleProofingValue = (kind: "temperature" | "humidity", value: number) => {
+    proofingDraftRef.current = {
+      ...proofingDraftRef.current,
+      [kind]: value
+    };
+    writeProofingCssValue(kind, value);
+
+    if (!proofingCommitFrameRef.current) {
+      proofingCommitFrameRef.current = window.requestAnimationFrame(commitProofingDraft);
+    }
+  };
   const dragSlider = (
     event: ReactPointerEvent<HTMLDivElement>,
-    setter: Dispatch<SetStateAction<number>>
+    kind: "temperature" | "humidity"
   ) => {
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = proofingSliderRectRef.current ?? event.currentTarget.getBoundingClientRect();
     const next = Math.round(((event.clientX - rect.left) / rect.width) * 100);
-    setter(Math.max(0, Math.min(100, next)));
+    scheduleProofingValue(kind, Math.max(0, Math.min(100, next)));
   };
+  const startSliderDrag = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    kind: "temperature" | "humidity"
+  ) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    proofingSliderRectRef.current = event.currentTarget.getBoundingClientRect();
+    dragSlider(event, kind);
+  };
+  const endSliderDrag = () => {
+    proofingSliderRectRef.current = null;
+  };
+  useEffect(() => {
+    proofingDraftRef.current.temperature = temperatureValue;
+    writeProofingCssValue("temperature", temperatureValue);
+  }, [temperatureValue]);
+
+  useEffect(() => {
+    proofingDraftRef.current.humidity = humidityValue;
+    writeProofingCssValue("humidity", humidityValue);
+  }, [humidityValue]);
+
+  useEffect(
+    () => () => {
+      window.cancelAnimationFrame(proofingCommitFrameRef.current);
+    },
+    []
+  );
   const lockProofing = () => {
     if (!proofingReady) {
       props.setNotice(`醒发参数还没稳定：温度${temperatureStatus}，湿度${humidityStatus}。把两个指针拖到中间适合区。`);
@@ -961,6 +1153,11 @@ export function ProofingLivePage(props: PageProps) {
 
         <div className="proofing-chamber-stage">
           <img src={assets.proofingChamber} alt="恒温醒发舱里的面团" className="proofing-chamber-photo" />
+          <div className="proofing-steam-cloud" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
           <div className="proofing-target-badge">
             <span>目标醒发</span>
             <strong>稳定区</strong>
@@ -971,14 +1168,10 @@ export function ProofingLivePage(props: PageProps) {
             <b>{proofingReady ? "松软气孔已成型" : "面团正在蓬起"}</b>
             <em>松软值 {softnessScore}%</em>
           </div>
-          <div className="proofing-steam-cloud" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </div>
         </div>
 
         <div
+          ref={proofingSliderBoardRef}
           className="proofing-slider-board"
           style={
             {
@@ -1005,12 +1198,13 @@ export function ProofingLivePage(props: PageProps) {
                 aria-valuemax={100}
                 aria-valuenow={temperatureValue}
                 onPointerDown={(event) => {
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  dragSlider(event, setTemperatureValue);
+                  startSliderDrag(event, "temperature");
                 }}
                 onPointerMove={(event) => {
-                  if (event.buttons) dragSlider(event, setTemperatureValue);
+                  if (event.buttons) dragSlider(event, "temperature");
                 }}
+                onPointerUp={endSliderDrag}
+                onPointerCancel={endSliderDrag}
               >
                 <img src={markerFor(temperatureValue)} alt="" />
               </div>
@@ -1040,12 +1234,13 @@ export function ProofingLivePage(props: PageProps) {
                 aria-valuemax={100}
                 aria-valuenow={humidityValue}
                 onPointerDown={(event) => {
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  dragSlider(event, setHumidityValue);
+                  startSliderDrag(event, "humidity");
                 }}
                 onPointerMove={(event) => {
-                  if (event.buttons) dragSlider(event, setHumidityValue);
+                  if (event.buttons) dragSlider(event, "humidity");
                 }}
+                onPointerUp={endSliderDrag}
+                onPointerCancel={endSliderDrag}
               >
                 <img src={markerFor(humidityValue)} alt="" />
               </div>
@@ -1087,12 +1282,12 @@ export function ProofingLivePage(props: PageProps) {
         </GlowButton>
         <OperationFlow active={2} />
       </div>
-      <Notice text={props.notice} />
     </Screen>
   );
 }
 
 export function BakingLivePage(props: PageProps) {
+  const documentVisible = useDocumentVisible();
   const [heatValue, setHeatValue] = useState(0);
   const [heatStopped, setHeatStopped] = useState(false);
   const [showHeatCompleteModal, setShowHeatCompleteModal] = useState(false);
@@ -1150,6 +1345,7 @@ export function BakingLivePage(props: PageProps) {
         ? `当前已经到 ${heatTemperature}°C，火候进入过烤区。重新开始后，在 165°C~175°C 的黄金区按下锁定。`
         : `当前停在 ${heatTemperature}°C，已经越过 165°C~175°C 黄金区。重新开始后，滑块到黄色目标区时立刻按下锁定。`;
   const heatActionLabel = heatStopped ? (isGolden ? "进入透明验证舱" : "重新锁定火候") : "按下锁定火候";
+  const heatInlineNotice = compactNotice(props.notice);
   const heatStyle = {
     "--heat-value": `${heatValue}%`,
     "--heat-thumb-x": `${6 + heatValue * 0.82}%`,
@@ -1161,14 +1357,18 @@ export function BakingLivePage(props: PageProps) {
   } as CSSProperties;
 
   useEffect(() => {
-    if (heatStopped || showHeatCompleteModal || showHeatFailModal) return;
+    preloadPackageModelAssets(assets.packageModel);
+  }, []);
+
+  useEffect(() => {
+    if (!documentVisible || heatStopped || showHeatCompleteModal || showHeatFailModal) return;
 
     const timer = window.setInterval(() => {
       setHeatValue((current) => Math.min(100, current + 1));
-    }, 68);
+    }, 58);
 
     return () => window.clearInterval(timer);
-  }, [heatStopped, showHeatCompleteModal, showHeatFailModal]);
+  }, [documentVisible, heatStopped, showHeatCompleteModal, showHeatFailModal]);
 
   useEffect(() => {
     if (heatStopped || showHeatCompleteModal || showHeatFailModal || heatTemperature < autoFailTemperature) return;
@@ -1215,12 +1415,12 @@ export function BakingLivePage(props: PageProps) {
       }`}
     >
       <TopBar onBack={() => props.go("proofingLive")} progress="07 / 09" />
-      <PageTitle label="AROMA CAPSULE 03" title="黄金焙香舱" subtitle="全程控温参数启动，黄金焙香正在进行中。" />
+      <PageTitle label="AROMA CAPSULE 04" title="黄金焙香舱" subtitle="观察滑块进入 165°C~175°C 黄金区，再按下锁定火候。" />
 
       <Panel className="scanner-panel production-live-panel heat-control-panel">
         <header>
           <b>面包烤色随温度实时变化</b>
-          <span>{heatStopped ? `${heatStatus} · ${heatFeedback}` : `控温运行中 · ${heatTemperature}°C`}</span>
+          <span>{heatStopped ? `${heatStatus} · ${heatFeedback}` : `进入黄金区时按下锁定 · ${heatTemperature}°C`}</span>
         </header>
         <div className="factory-window area-baking revealed baking-oven-window" style={heatStyle}>
           <div className="oven-glass" aria-label={`当前温度 ${heatTemperature} 摄氏度，${bakeStageText}`}>
@@ -1271,7 +1471,7 @@ export function BakingLivePage(props: PageProps) {
             </span>
           </div>
           <p className="heat-console-feedback">
-            {bakeStageText} / {heatStatus} / {heatFeedback}
+            {heatInlineNotice || `${bakeStageText} / ${heatStatus} / ${heatFeedback}`}
           </p>
         </div>
       </Panel>
@@ -1299,7 +1499,7 @@ export function BakingLivePage(props: PageProps) {
           title="火候锁定失败"
           body={heatFailBody}
           primaryLabel="再来一次"
-          secondaryLabel="先看看结果"
+          secondaryLabel="知道了"
           onPrimary={resetHeat}
           onSecondary={() => {
             setShowHeatFailModal(false);
@@ -1327,189 +1527,507 @@ export function BakingLivePage(props: PageProps) {
         </GlowButton>
         <OperationFlow active={3} />
       </div>
-      <Notice text={props.notice} />
     </Screen>
   );
 }
 
 export function PackingLivePage(props: PageProps) {
+  const documentVisible = useDocumentVisible();
   const traceStageRef = useRef<HTMLDivElement>(null);
-  const [traceProgress, setTraceProgress] = useState(12);
-  const [scannerPosition, setScannerPosition] = useState({ x: 28, y: 62 });
+  const packageModelRef = useRef<PackageModelViewerHandle | null>(null);
+  const traceStageRectRef = useRef<DOMRect | null>(null);
+  const interactionRef = useRef<"rotate" | "scan" | null>(null);
+  const traceCompleteAnnouncedRef = useRef(false);
+  const rotateDragRef = useRef<{
+    startX: number;
+    startProgress: number;
+    lastX: number;
+    lastTime: number;
+    velocity: number;
+  } | null>(null);
+  const rotationTweenRef = useRef<ReturnType<typeof gsap.to> | null>(null);
+  const traceVisualFrameRef = useRef(0);
+  const packageRotationRef = useRef(0);
+  const scannerPositionRef = useRef({ x: 72, y: 72 });
+  const scannerOnCodeRef = useRef(false);
+  const [packageRotation, setPackageRotation] = useState(0);
+  const [traceProgress, setTraceProgress] = useState(0);
+  const [scannerPosition, setScannerPosition] = useState({ x: 72, y: 72 });
+  const [scannerOnCode, setScannerOnCode] = useState(false);
   const [showTraceCompleteModal, setShowTraceCompleteModal] = useState(false);
+  const [modelFailed, setModelFailed] = useState(false);
+  const rotateComplete = packageRotation >= 96;
   const traceComplete = traceProgress >= 100;
   const traceOutputs: Array<[string, string, LucideIcon]> = [
     ["生产视频", "查看透明工厂生产过程片段", Factory],
     ["检测证书", "读取品质检测与安心证明", ShieldCheck],
     ["产品溯源", "回看原料到出炉的完整路径", ScanLine]
   ];
+  const traceUnlockThresholds = [34, 67, 100];
+  const traceStageTitle = traceComplete
+    ? "透明验证完成，三项结果已解锁"
+    : modelFailed
+      ? "备用追踪码已就绪"
+      : rotateComplete
+      ? "拖动扫描器读取二维码"
+      : "左右拖动包装，找到背面二维码";
+  const traceStageMeta = traceComplete
+    ? "UNLOCKED 100%"
+    : modelFailed
+      ? "FALLBACK READY"
+      : rotateComplete
+      ? `SCAN ${traceProgress}%`
+      : `ROTATE ${Math.round(packageRotation)}%`;
+  const traceInlineNotice = compactNotice(props.notice, 42);
+  const traceMainCopy = traceInlineNotice || (traceComplete
+    ? "生产视频、检测证书与产品溯源已读取完成，可以生成早餐透明报告。"
+    : modelFailed
+      ? "3D 包装加载失败时，可使用备用追踪码继续完成透明验证。"
+      : rotateComplete
+      ? "二维码面已就位，拖动圆形扫描器贴近模型自带二维码并保持读取。"
+      : "从正面左右拖动 3D 包装，先找到包装背面的模型自带二维码。");
+  const traceButtonLabel = traceComplete
+    ? "生成我的早餐透明报告"
+    : modelFailed
+      ? "使用备用追踪码完成验证"
+      : rotateComplete
+      ? "对准二维码完成扫描"
+      : "先找到背面二维码";
+  const traceUnlockProgressFor = (index: number) => {
+    const start = index === 0 ? 0 : (traceUnlockThresholds[index - 1] ?? 0);
+    const end = traceUnlockThresholds[index] ?? 100;
+    return Math.min(100, Math.max(0, ((traceProgress - start) / (end - start)) * 100));
+  };
+  const traceStatusFor = (index: number) => {
+    const threshold = traceUnlockThresholds[index] ?? 100;
+    if (traceProgress >= threshold) return "已解锁";
+    if (modelFailed) return "备用码";
+    if (scannerOnCode) return "读取中";
+    return rotateComplete ? "待扫描" : "待翻面";
+  };
+  const traceUnlockedCount = traceUnlockThresholds.filter((threshold) => traceProgress >= threshold).length;
+
+  const writePackageRotationVisual = (value: number) => {
+    traceStageRef.current?.style.setProperty("--rotation-progress", `${value}%`);
+    packageModelRef.current?.setBackReveal(value / 100);
+  };
+  const writeScannerPositionVisual = (position: { x: number; y: number }) => {
+    const stage = traceStageRef.current;
+    if (!stage) return;
+    stage.style.setProperty("--scanner-x", `${position.x}%`);
+    stage.style.setProperty("--scanner-y", `${position.y}%`);
+  };
+  const commitTraceVisualState = () => {
+    traceVisualFrameRef.current = 0;
+    const nextRotation = packageRotationRef.current;
+    const nextScannerPosition = scannerPositionRef.current;
+
+    setPackageRotation((current) =>
+      Math.abs(current - nextRotation) < 0.05 ? current : nextRotation
+    );
+    setScannerPosition((current) =>
+      current.x === nextScannerPosition.x && current.y === nextScannerPosition.y
+        ? current
+        : nextScannerPosition
+    );
+  };
+  const scheduleTraceVisualCommit = () => {
+    if (!traceVisualFrameRef.current) {
+      traceVisualFrameRef.current = window.requestAnimationFrame(commitTraceVisualState);
+    }
+  };
+  const setPackageRotationVisual = (value: number, commitState = true) => {
+    packageRotationRef.current = value;
+    writePackageRotationVisual(value);
+    if (commitState) scheduleTraceVisualCommit();
+  };
+  const setScannerPositionVisual = (position: { x: number; y: number }, commitState = true) => {
+    scannerPositionRef.current = position;
+    writeScannerPositionVisual(position);
+    if (commitState) scheduleTraceVisualCommit();
+  };
+  const setScannerOnCodeVisual = (value: boolean) => {
+    if (scannerOnCodeRef.current === value) return;
+    scannerOnCodeRef.current = value;
+    setScannerOnCode(value);
+  };
+
+  useEffect(() => {
+    preloadPackageModelAssets(assets.packageModel);
+  }, []);
+
+  useEffect(() => {
+    packageRotationRef.current = packageRotation;
+    writePackageRotationVisual(packageRotation);
+  }, [packageRotation]);
+
+  useEffect(() => {
+    scannerPositionRef.current = scannerPosition;
+    writeScannerPositionVisual(scannerPosition);
+  }, [scannerPosition]);
+
+  useEffect(() => {
+    scannerOnCodeRef.current = scannerOnCode;
+  }, [scannerOnCode]);
+
+  useEffect(
+    () => () => {
+      window.cancelAnimationFrame(traceVisualFrameRef.current);
+    },
+    []
+  );
+
+  useEffect(
+    () => () => {
+      rotationTweenRef.current?.kill();
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (documentVisible) return;
+
+    rotationTweenRef.current?.kill();
+    rotationTweenRef.current = null;
+    interactionRef.current = null;
+    rotateDragRef.current = null;
+    traceStageRectRef.current = null;
+    setScannerOnCodeVisual(false);
+  }, [documentVisible]);
+
+  useEffect(() => {
+    if (!documentVisible || !scannerOnCode || !rotateComplete || traceComplete) return undefined;
+
+    const timer = window.setInterval(() => {
+      setTraceProgress((current) => Math.min(100, current + 7));
+    }, 95);
+
+    return () => window.clearInterval(timer);
+  }, [documentVisible, rotateComplete, scannerOnCode, traceComplete]);
+
+  useEffect(() => {
+    if (traceProgress < 100) {
+      traceCompleteAnnouncedRef.current = false;
+      return;
+    }
+    if (traceCompleteAnnouncedRef.current) return;
+
+    traceCompleteAnnouncedRef.current = true;
+    setScannerOnCodeVisual(false);
+    setShowTraceCompleteModal(true);
+    props.setNotice("透明验证已完成。好吃不是黑箱，过程全程可见。");
+  }, [props, traceProgress]);
+
+  const rotatePackage = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = traceStageRectRef.current ?? traceStageRef.current?.getBoundingClientRect();
+    const drag = rotateDragRef.current;
+    if (!rect || !drag) return;
+
+    const now = window.performance.now();
+    const elapsed = Math.max(16, now - drag.lastTime);
+    const rawDelta = ((event.clientX - drag.lastX) / rect.width) * 170;
+    const delta = drag.startProgress >= 96 ? rawDelta : Math.abs(rawDelta);
+    const nextProgress = Math.min(100, Math.max(0, packageRotationRef.current + delta));
+
+    drag.velocity = delta / elapsed;
+    drag.lastX = event.clientX;
+    drag.lastTime = now;
+    setPackageRotationVisual(nextProgress);
+  };
 
   const moveScanner = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = traceStageRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const rect = traceStageRectRef.current ?? traceStageRef.current?.getBoundingClientRect();
+    if (!rect || !rotateComplete) return;
 
     const x = Math.min(88, Math.max(12, ((event.clientX - rect.left) / rect.width) * 100));
     const y = Math.min(84, Math.max(16, ((event.clientY - rect.top) / rect.height) * 100));
-    const distanceToCode = Math.hypot(x - 39, y - 53);
-    const nextProgress = Math.max(18, Math.min(100, Math.round(112 - distanceToCode * 5.2)));
+    const distanceToCode = Math.hypot(x - 32, y - 24);
 
-    setScannerPosition({ x, y });
-    setTraceProgress((current) => Math.max(current, nextProgress));
+    setScannerPositionVisual({ x, y });
+    setScannerOnCodeVisual(distanceToCode <= 10.5);
+  };
 
-    if (nextProgress >= 100) {
-      setShowTraceCompleteModal(true);
-      props.setNotice("透明验证已完成。好吃不是黑箱，过程全程可见。");
+  const startTraceInteraction = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (modelFailed) return;
+
+    const rect = traceStageRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const target = event.target as HTMLElement;
+    const shouldScan = rotateComplete && Boolean(target.closest(".data-scanner"));
+
+    rotationTweenRef.current?.kill();
+    rotationTweenRef.current = null;
+    traceStageRectRef.current = rect;
+    interactionRef.current = shouldScan ? "scan" : "rotate";
+    rotateDragRef.current = {
+      startX: event.clientX,
+      startProgress: packageRotationRef.current,
+      lastX: event.clientX,
+      lastTime: window.performance.now(),
+      velocity: 0
+    };
+
+    if (shouldScan) {
+      moveScanner(event);
+      return;
+    }
+
+    rotatePackage(event);
+  };
+
+  const completeTraceWithFallback = () => {
+    setPackageRotationVisual(100, false);
+    setPackageRotation(100);
+    setScannerOnCodeVisual(false);
+    setTraceProgress(100);
+    props.setNotice("已使用备用追踪码完成透明验证。");
+  };
+
+  const updateTraceInteraction = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!event.buttons) return;
+
+    if (interactionRef.current === "rotate") {
+      rotatePackage(event);
+      setScannerOnCodeVisual(false);
+      return;
+    }
+
+    if (interactionRef.current === "scan") {
+      moveScanner(event);
+    }
+  };
+
+  const endTraceInteraction = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = rotateDragRef.current;
+    const wasRotating = interactionRef.current === "rotate";
+
+    interactionRef.current = null;
+    rotateDragRef.current = null;
+    traceStageRectRef.current = null;
+    setScannerOnCodeVisual(false);
+
+    if (wasRotating && drag) {
+      const projectedRotation = Math.min(100, Math.max(0, packageRotationRef.current + drag.velocity * 260));
+      const tweenState = { value: packageRotationRef.current };
+      rotationTweenRef.current?.kill();
+      rotationTweenRef.current = gsap.to(tweenState, {
+        value: projectedRotation,
+        duration: 0.58,
+        ease: "power3.out",
+        onUpdate: () => setPackageRotationVisual(tweenState.value),
+        onComplete: () => {
+          rotationTweenRef.current = null;
+        }
+      });
+    }
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Some browsers release pointer capture automatically.
     }
   };
 
   return (
     <Screen background={assets.bgFactory} className="production-live-page packing-live-stage">
       <TopBar onBack={() => props.go("bakingLive")} progress="08 / 09" />
-      <PageTitle label="VERIFY CAPSULE 04" title="透明验证舱" subtitle="扫描包装追踪码，验证好吃全过程。" />
-      <FlowNav active={2} />
+      <PageTitle label="VERIFY CAPSULE 05" title="透明验证舱" subtitle="扫描包装追踪码，验证好吃全过程。" />
 
       <Panel className="scanner-panel production-live-panel trace-code-panel">
         <header>
-          <b>拖动圆形数据扫描器，对准包装追踪码</b>
-          <span>TRACE... {traceProgress}%</span>
+          <b>{traceStageTitle}</b>
+          <span>{traceStageMeta}</span>
         </header>
         <div
           ref={traceStageRef}
-          className={`trace-code-stage ${traceComplete ? "trace-complete" : ""}`}
+          className={`trace-code-stage ${traceComplete ? "trace-complete" : ""} ${rotateComplete ? "scan-mode" : "rotate-mode"} ${scannerOnCode ? "qr-locked" : ""} ${modelFailed ? "model-error" : ""}`}
           style={
             {
               "--scanner-x": `${scannerPosition.x}%`,
-              "--scanner-y": `${scannerPosition.y}%`
+              "--scanner-y": `${scannerPosition.y}%`,
+              "--rotation-progress": `${packageRotation}%`,
+              "--trace-progress": `${traceProgress}%`
             } as CSSProperties
           }
-          onPointerDown={moveScanner}
-          onPointerMove={(event) => {
-            if (event.buttons) {
-              moveScanner(event);
-            }
-          }}
+          onPointerDown={startTraceInteraction}
+          onPointerMove={updateTraceInteraction}
+          onPointerUp={endTraceInteraction}
+          onPointerCancel={endTraceInteraction}
         >
-          <img src={assets.productFront} alt="豪士面包包装" className="trace-product" />
-          <div className="trace-code-marker">
-            <span>HORSH</span>
-            <b>TRACE CODE</b>
+          <Suspense
+            fallback={
+              <div className="package-model-viewer">
+                <span className="package-model-status">3D 包装载入中</span>
+              </div>
+            }
+          >
+            <PackageModelViewer
+              ref={packageModelRef}
+              modelSrc={assets.packageModel}
+              backReveal={packageRotation / 100}
+              onReady={() => setModelFailed(false)}
+              onError={() => setModelFailed(true)}
+            />
+          </Suspense>
+          {modelFailed && (
+            <div className="trace-fallback-card">
+              <ShieldCheck size={22} />
+              <b>备用追踪码</b>
+              <span>3D 包装未载入，仍可完成验证闭环。</span>
+            </div>
+          )}
+          <div className="trace-rotation-meter" aria-hidden={rotateComplete}>
+            <span>正面</span>
+            <i>
+              <em style={{ width: `${packageRotation}%` }} />
+            </i>
+            <span>背面二维码</span>
           </div>
-          <div className="data-scanner">
-            <ScanLine size={22} />
-            <span>SCAN</span>
-          </div>
-          <div className="trace-hud-chain" aria-hidden={!traceComplete}>
-            {traceOutputs.map(([item]) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
+          {rotateComplete && (
+            <>
+              <div className="trace-qr-hotspot" aria-label="模型自带二维码扫描区域" />
+              <div className="data-scanner">
+                <ScanLine size={22} />
+                <span>{scannerOnCode ? "READ" : "SCAN"}</span>
+              </div>
+            </>
+          )}
         </div>
-        <p className="trace-main-copy">
-          豪士透明工厂数据已写入包装追踪码，扫描即可查看生产视频、检测证书与产品溯源。
-        </p>
+        <p className="trace-main-copy">{traceMainCopy}</p>
       </Panel>
 
-      <Panel className="trace-results-panel">
-        <h2>扫描结果</h2>
-        <div>
-          {traceOutputs.map(([title, desc, Icon]) => (
-            <article className={traceComplete ? "active" : ""} key={title}>
-              <Icon size={20} />
-              <b>{title}</b>
-              <span>{desc}</span>
-              <em>{traceComplete ? "已解锁" : "待扫描"}</em>
-            </article>
-          ))}
+      <Panel className={`trace-unlock-strip ${traceComplete ? "trace-complete" : ""} ${scannerOnCode ? "is-reading" : ""}`}>
+        <header className="trace-unlock-head">
+          <h2>扫描解锁</h2>
+          <span>{traceComplete ? "3/3 已完成" : rotateComplete ? `${traceUnlockedCount}/3 证据读取` : "先翻到二维码面"}</span>
+        </header>
+        <div className="trace-unlock-grid">
+          {traceOutputs.map(([title, desc, Icon], index) => {
+            const threshold = traceUnlockThresholds[index] ?? 100;
+            const itemProgress = traceUnlockProgressFor(index);
+            const active = traceProgress >= threshold;
+
+            return (
+              <article
+                className={`${active ? "active" : ""} ${itemProgress > 0 && !active ? "is-reading" : ""}`}
+                key={title}
+                style={{ "--unlock-progress": `${itemProgress}%` } as CSSProperties}
+              >
+                <i>{String(index + 1).padStart(2, "0")}</i>
+                <Icon size={20} />
+                <b>{title}</b>
+                <span>{desc}</span>
+                <em>{traceStatusFor(index)}</em>
+                <small aria-hidden="true" />
+              </article>
+            );
+          })}
         </div>
       </Panel>
 
       {showTraceCompleteModal && traceComplete && (
         <CompletionModal
-          ariaLabel="透明验证已完成"
-          title="透明验证已完成。"
-          body="好吃不是黑箱，过程全程可见。"
-          primaryLabel="生成我的早餐透明报告"
-          secondaryLabel="再来一次"
+          ariaLabel="透明验证完成"
+          title="透明验证完成"
+          body="生产视频、检测证书与产品溯源已解锁。"
+          primaryLabel="生成早餐透明报告"
+          secondaryLabel="继续查看"
           onPrimary={() => {
             props.unlockStage(5);
             props.go("report");
           }}
-          onSecondary={() => {
-            setShowTraceCompleteModal(false);
-            setTraceProgress(12);
-            setScannerPosition({ x: 28, y: 62 });
-            props.setNotice("重新扫描包装追踪码，读取生产视频、检测证书与产品溯源。");
-          }}
+          onSecondary={() => setShowTraceCompleteModal(false)}
         />
       )}
 
       <div className="bottom-actions">
         <GlowButton
+          disabled={!traceComplete && !modelFailed}
           onClick={() => {
-            if (!traceComplete) {
-              props.setNotice("请拖动圆形数据扫描器，对准 HORSH TRACE CODE。");
-              setTraceProgress((current) => Math.min(92, current + 22));
+            if (modelFailed && !traceComplete) {
+              completeTraceWithFallback();
               return;
             }
-            setShowTraceCompleteModal(true);
+            if (!traceComplete) return;
+            props.unlockStage(5);
+            props.go("report");
           }}
         >
-          生成我的早餐透明报告
+          {traceButtonLabel}
         </GlowButton>
         <OperationFlow active={4} />
       </div>
-      <Notice text={props.notice} />
     </Screen>
   );
 }
 
-export function ReportPage({ go, order, notice, solution, saveReport, shareReport, reportRef, setNotice }: PageProps) {
+export function ReportPage({ go, order, notice, solution, saveReport, shareReport, openPurchasePage, reportRef }: PageProps) {
+  const reportTickets = [
+    ["早餐小 BUG", order.bugType, order.description],
+    ["当前身份", solution.identity, solution.scenarioCopy],
+    ["推荐方案", solution.recommendation, "豪士藜麦吐司，好吃看得见。"]
+  ] as const;
+  const reportInlineNotice = compactNotice(notice, 42);
+
   return (
     <Screen background={assets.bgTerminal} className="report-page">
       <TopBar onBack={() => go("packingLive")} progress="09 / 09" />
-      <PageTitle label="BREAKFAST BUG REPORT" title="我的早餐透明报告" subtitle="本次早餐小 BUG 已完成透明工厂验证。" />
+      <PageTitle label="BREAKFAST BUG REPORT" title="我的早餐透明报告" subtitle="豪士藜麦吐司透明验证已完成。" />
 
-      <section className="report-card" ref={reportRef}>
-        <header>
-          <span>REPORT NO. {order.id}</span>
-          <b>LOADED 豪士透明工厂</b>
-        </header>
-        <InfoRows
-          rows={[
-            ["早餐小 BUG", order.bugType],
-            ["早餐角色", solution.abnormalRole],
-            ["推荐方案", solution.recommendation],
-            ["已完成控制舱", "原料数据舱 / 松软唤醒舱 / 恒温醒发舱 / 黄金焙香舱 / 透明验证舱"],
-            ["当前身份", solution.identity],
-            ["状态关键词", "安心 / 松软 / 香气 / 看得见"],
-            ["透明结论", "早餐不将就，好吃看得见。"],
-            ["品牌口号", "豪士豪士，好吃好吃。"]
-          ]}
-        />
-        <section className="breakfast-reco">
+      <div className="report-card report-certificate" ref={reportRef}>
+        <header className="report-certificate-head">
           <div>
-            <h2>推荐早餐方案</h2>
-            <b>{solution.recommendation}</b>
-            <p>当早餐状态出现 BUG，豪士透明工厂即刻接入，看见好吃从原料到出炉的生成过程。</p>
+            <span>HORSH TRANSPARENT FACTORY</span>
+            <h2>豪士藜麦吐司</h2>
+            <p>REPORT NO. {order.id}</p>
           </div>
-          <img src={assets.productBox} alt="豪士藜麦吐司盒装" />
+          <b>
+            <CheckCircle2 size={16} />
+            VERIFIED
+          </b>
+        </header>
+
+        <section className="report-hero-panel">
+          <div className="report-product-stage">
+            <i className="report-product-halo" aria-hidden="true" />
+            <img className="report-product-box" src={assets.productBoxCropped} alt="豪士藜麦吐司盒装" />
+            <img className="report-product-front" src={assets.productFrontCropped} alt="豪士藜麦吐司产品正面" />
+          </div>
+          <div className="report-verdict">
+            <span>透明结论</span>
+            <strong>好吃看得见</strong>
+            <p>原料、工艺与包装追踪码已完成验证，过程可见。</p>
+            <small>{solution.recommendation} · {solution.identity}</small>
+          </div>
         </section>
-        <div className="report-meters">
-          <span><b>100%</b>状态唤醒</span>
-          <span><b>5/5</b>控制舱完成</span>
-          <span><b>100%</b>透明验证</span>
-        </div>
-      </section>
+
+        <section className="report-ticket">
+          {reportTickets.map(([label, value, desc]) => (
+            <article key={label}>
+              <span>{label}</span>
+              <b>{value}</b>
+              <p>{desc}</p>
+            </article>
+          ))}
+        </section>
+
+      </div>
 
       <div className="report-actions">
-        <button onClick={saveReport}><Download size={18} />保存透明报告</button>
-        <button onClick={shareReport}><Share2 size={18} />分享给早餐搭子</button>
-        <button onClick={() => setNotice("已解锁豪士吐司同款早餐方案。")}><LockKeyhole size={18} />解锁同款早餐</button>
+        <button onClick={saveReport}><Download size={18} />保存报告</button>
+        <button onClick={shareReport}><Share2 size={18} />分享报告</button>
+        <button onClick={openPurchasePage}>
+          <ShoppingCart size={18} />购买同款
+        </button>
       </div>
+      <p className={`report-inline-status ${reportInlineNotice ? "active" : ""}`}>
+        {reportInlineNotice || "报告已生成。"}
+      </p>
       <GlowButton variant="secondary" onClick={() => go("home")}>
         再来一次
       </GlowButton>
-      <Notice text={notice} />
     </Screen>
   );
 }

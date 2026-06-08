@@ -36,6 +36,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Audit referenced assets
+        run: npm run assets:audit
+
+      - name: Lighthouse mobile baseline
+        run: npm run perf:lighthouse
+        continue-on-error: true
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

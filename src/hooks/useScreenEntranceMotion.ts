@@ -16,6 +16,9 @@ const screenEntranceTargets = [
   ".bottom-actions"
 ].join(", ");
 
+const selectMotionTargets = (root: HTMLElement, selector: string) =>
+  Array.from(root.querySelectorAll<HTMLElement>(selector));
+
 export function useScreenEntranceMotion(rootRef: RefObject<HTMLElement>, enabled = true) {
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -25,7 +28,18 @@ export function useScreenEntranceMotion(rootRef: RefObject<HTMLElement>, enabled
 
     mm.add("(prefers-reduced-motion: no-preference)", () => {
       const ctx = gsap.context(() => {
-        gsap.set(screenEntranceTargets, { willChange: "transform, opacity" });
+        const entranceTargets = selectMotionTargets(root, screenEntranceTargets);
+        const topBarTargets = selectMotionTargets(root, ".top-bar");
+        const pageTitleTargets = selectMotionTargets(root, ".page-title");
+        const panelTargets = selectMotionTargets(
+          root,
+          ".panel, .live-card, .metric-card, .repair-status, .check-row, .report-card"
+        );
+        const bottomTargets = selectMotionTargets(root, ".flow-nav, .bottom-actions");
+
+        if (entranceTargets.length > 0) {
+          gsap.set(entranceTargets, { willChange: "transform, opacity" });
+        }
 
         const timeline = gsap.timeline({
           defaults: {
@@ -34,25 +48,37 @@ export function useScreenEntranceMotion(rootRef: RefObject<HTMLElement>, enabled
             overwrite: "auto"
           },
           onComplete: () => {
-            gsap.set(screenEntranceTargets, {
-              clearProps: "transform,opacity,visibility,willChange"
-            });
+            if (entranceTargets.length > 0) {
+              gsap.set(entranceTargets, {
+                clearProps: "transform,opacity,visibility,willChange"
+              });
+            }
           }
         });
 
-        timeline
-          .from(".top-bar", { y: -12, autoAlpha: 0, duration: 0.32 }, 0)
-          .from(".page-title", { y: 14, autoAlpha: 0 }, 0.06)
-          .from(
-            ".panel, .live-card, .metric-card, .repair-status, .check-row, .report-card",
+        if (topBarTargets.length > 0) {
+          timeline.from(topBarTargets, { y: -12, autoAlpha: 0, duration: 0.32 }, 0);
+        }
+
+        if (pageTitleTargets.length > 0) {
+          timeline.from(pageTitleTargets, { y: 14, autoAlpha: 0 }, 0.06);
+        }
+
+        if (panelTargets.length > 0) {
+          timeline.from(
+            panelTargets,
             {
               y: 16,
               autoAlpha: 0,
               stagger: { each: 0.035, from: "start" }
             },
             0.14
-          )
-          .from(".flow-nav, .bottom-actions", { y: 16, autoAlpha: 0, duration: 0.36 }, 0.24);
+          );
+        }
+
+        if (bottomTargets.length > 0) {
+          timeline.from(bottomTargets, { y: 16, autoAlpha: 0, duration: 0.36 }, 0.24);
+        }
       }, root);
 
       return () => ctx.revert();

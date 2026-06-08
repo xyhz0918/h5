@@ -67,6 +67,7 @@ export type PageProps = {
   setLiked: (value: boolean) => void;
   saveReport: () => Promise<void>;
   shareReport: () => Promise<void>;
+  openPurchasePage: () => void;
   reportRef: RefObject<HTMLDivElement>;
   transitionPhase: TransitionPhase;
   homeArrivalActive: boolean;

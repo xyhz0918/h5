@@ -10,12 +10,14 @@ export function Screen({
   children,
   background,
   className = "",
-  entranceMotion = true
+  entranceMotion = true,
+  motionLayer = false
 }: {
   children: ReactNode;
   background: string;
   className?: string;
   entranceMotion?: boolean;
+  motionLayer?: boolean;
 }) {
   const screenRef = useRef<HTMLElement>(null);
   const designScale = useDesignCanvasScale();
@@ -35,7 +37,7 @@ export function Screen({
     >
       <div className="screen-frame-shell">
         <div className="screen-frame">
-          <MotionLayer />
+          {motionLayer && <MotionLayer />}
           <div className="screen-body">{children}</div>
         </div>
       </div>
@@ -96,7 +98,7 @@ export function PageTitle({
   return (
     <section className="page-title">
       <p>{label}</p>
-      <h1 className={titleClassName} data-text={titleDataText}>{title}</h1>
+      <h1 className={titleClassName} data-text={titleDataText} aria-label={titleDataText}>{title}</h1>
       <span>{subtitle}</span>
     </section>
   );

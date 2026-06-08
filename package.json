@@ -6,7 +6,17 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "build:analyze": "tsc && vite build --mode analyze",
+    "preview": "vite preview --host 0.0.0.0",
+    "perf:lighthouse": "lhci autorun",
+    "perf:h5:dev": "node scripts/perf-h5.mjs --serve-dev --port 5176 --label dev-5176",
+    "perf:h5:prod": "npm run build && node scripts/perf-h5.mjs --serve-prod --port 4176 --label prod-preview",
+    "perf:h5": "npm run perf:h5:dev && npm run perf:h5:prod",
+    "smoke:mobile": "node scripts/playwright-smoke.mjs",
+    "assets:audit": "node scripts/asset-audit.mjs",
+    "assets:optimize": "node scripts/optimize-images.mjs",
+    "model:optimize": "gltf-transform optimize assets/models/bread-package-optimized.glb assets/models/bread-package-optimized-web.glb --compress false --simplify false --texture-compress webp --texture-size 1024",
+    "model:optimize:lite": "gltf-transform optimize assets/models/bread-package-optimized-web.glb assets/models/bread-package-optimized-lite.glb --compress false --simplify false --texture-compress webp --texture-size 768"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",
@@ -15,11 +25,18 @@
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "three": "^0.184.0",
     "vite": "^6.0.1"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.4.0",
+    "@lhci/cli": "^0.15.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "typescript": "^5.6.3"
+    "@types/three": "^0.184.1",
+    "rollup-plugin-visualizer": "^7.0.1",
+    "sharp": "^0.34.5",
+    "typescript": "^5.6.3",
+    "vite-plugin-compression2": "^2.5.3"
   }
 }
