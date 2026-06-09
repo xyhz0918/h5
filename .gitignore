@@ -6,6 +6,7 @@ reports/
 .playwright-cli/
 output/playwright/
 output/perf/
+output/image-candidates/
 test-results/
 .codex-vite*.log
 *.local

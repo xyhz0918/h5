@@ -3,6 +3,11 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [[redirects]]
   from = "https://zhyx45.xyz/*"
   to = "https://www.zhyx45.xyz/:splat"

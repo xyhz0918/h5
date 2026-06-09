@@ -27,6 +27,11 @@ const config = {
     { src: "/api/admin-events", dest: "/api/admin-events" },
     { src: "/admin/?", dest: "/index.html" },
     { src: "/admin/(.*)", dest: "/index.html" },
+    {
+      src: "/assets/(.*)",
+      headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+      continue: true
+    },
     { handle: "filesystem" },
     { src: "/(.*)", dest: "/index.html" }
   ]

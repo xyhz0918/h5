@@ -87,6 +87,7 @@ const h5PageImagePreloadMap: Record<PageId, string[]> = {
 };
 
 const imagePreloadCache = new Set<string>();
+const imagePreloadQueue = new Set<string>();
 const imageFilePattern = /\.(avif|gif|jpe?g|png|svg|webp)(\?|$)/i;
 const stageByPage: Partial<Record<PageId, string>> = {
   select: "bug_select",
@@ -112,6 +113,7 @@ const completedStageByTransition: Partial<Record<`${PageId}->${PageId}`, string>
 function preloadImage(src: string, loading: "eager" | "lazy" = "eager") {
   if (!src || imagePreloadCache.has(src) || !imageFilePattern.test(src)) return;
   imagePreloadCache.add(src);
+  imagePreloadQueue.delete(src);
 
   const image = new Image();
   image.decoding = "async";
@@ -123,14 +125,21 @@ function preloadImage(src: string, loading: "eager" | "lazy" = "eager") {
   }
 }
 
-function preloadPageImages(pageId: PageId, lookahead = 2, loading: "eager" | "lazy" = "eager") {
+function getPageImagePreloadSources(pageId: PageId, lookahead = 2) {
   const pageIndex = h5PagePreloadOrder.indexOf(pageId);
   const preloadPages =
     pageIndex >= 0 ? h5PagePreloadOrder.slice(pageIndex, pageIndex + lookahead + 1) : [pageId];
+  const sources = new Set<string>();
 
   preloadPages.forEach((page) => {
-    h5PageImagePreloadMap[page].forEach((src) => preloadImage(src, loading));
+    h5PageImagePreloadMap[page].forEach((src) => sources.add(src));
   });
+
+  return Array.from(sources);
+}
+
+function preloadPageImages(pageId: PageId, lookahead = 2, loading: "eager" | "lazy" = "eager") {
+  getPageImagePreloadSources(pageId, lookahead).forEach((src) => preloadImage(src, loading));
 }
 
 function scheduleIdlePreload(task: () => void) {
@@ -155,6 +164,86 @@ function scheduleIdlePreload(task: () => void) {
     cancelled = true;
     window.clearTimeout(handle);
   };
+}
+
+function preloadImagesInBatches(
+  sources: string[],
+  {
+    loading = "lazy",
+    batchSize = 2,
+    delayMs = 220
+  }: { loading?: "eager" | "lazy"; batchSize?: number; delayMs?: number } = {}
+) {
+  if (typeof window === "undefined") return () => undefined;
+
+  const queuedSources: string[] = [];
+  sources.forEach((src) => {
+    if (!src || imagePreloadCache.has(src) || imagePreloadQueue.has(src) || !imageFilePattern.test(src)) {
+      return;
+    }
+    imagePreloadQueue.add(src);
+    queuedSources.push(src);
+  });
+
+  if (queuedSources.length === 0) return () => undefined;
+
+  let cancelled = false;
+  let index = 0;
+  const timeouts: number[] = [];
+  const idleCleanups: Array<() => void> = [];
+
+  const runBatch = () => {
+    if (cancelled) return;
+
+    const end = Math.min(index + batchSize, queuedSources.length);
+    while (index < end) {
+      preloadImage(queuedSources[index], loading);
+      index += 1;
+    }
+
+    if (index < queuedSources.length) {
+      const timeout = window.setTimeout(scheduleNextBatch, delayMs);
+      timeouts.push(timeout);
+    }
+  };
+
+  const scheduleNextBatch = () => {
+    if (cancelled) return;
+    idleCleanups.push(scheduleIdlePreload(runBatch));
+  };
+
+  scheduleNextBatch();
+
+  return () => {
+    cancelled = true;
+    timeouts.forEach((timeout) => window.clearTimeout(timeout));
+    idleCleanups.forEach((cleanup) => cleanup());
+    queuedSources.forEach((src) => {
+      if (!imagePreloadCache.has(src)) {
+        imagePreloadQueue.delete(src);
+      }
+    });
+  };
+}
+
+function preloadPageImagesBatched(pageId: PageId, lookahead = 2, loading: "eager" | "lazy" = "lazy") {
+  return preloadImagesInBatches(getPageImagePreloadSources(pageId, lookahead), {
+    loading,
+    batchSize: 2,
+    delayMs: 180
+  });
+}
+
+function preloadFlowImagesAfterHome() {
+  const laterPageSources = h5PagePreloadOrder
+    .slice(1)
+    .flatMap((page) => h5PageImagePreloadMap[page]);
+
+  return preloadImagesInBatches(laterPageSources, {
+    loading: "lazy",
+    batchSize: 2,
+    delayMs: 260
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -303,7 +392,18 @@ function App() {
     preloadPageImages("home", 1, "eager");
   }, []);
 
-  useEffect(() => scheduleIdlePreload(() => preloadPageImages(page, 2)), [page]);
+  useEffect(() => {
+    if (!hasEntered) return undefined;
+    return preloadPageImagesBatched(page, 2, "lazy");
+  }, [hasEntered, page]);
+
+  useEffect(() => {
+    if (!hasEntered || showLoading || transitionPhase !== "home" || page !== "home") {
+      return undefined;
+    }
+
+    return preloadFlowImagesAfterHome();
+  }, [hasEntered, page, showLoading, transitionPhase]);
 
   const solution = selectedBug ?? bugOptions[0];
 
