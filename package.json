@@ -9,6 +9,7 @@
     "build:analyze": "tsc && vite build --mode analyze",
     "preview": "vite preview --host 0.0.0.0",
     "perf:lighthouse": "lhci autorun",
+    "perf:budget": "node scripts/performance-budget.mjs",
     "perf:h5:dev": "node scripts/perf-h5.mjs --serve-dev --port 5176 --label dev-5176",
     "perf:h5:prod": "npm run build && node scripts/perf-h5.mjs --serve-prod --port 4176 --label prod-preview",
     "perf:h5:canvas": "node scripts/perf-h5.mjs --serve-dev --port 5176 --label canvas-640 --canvas",
@@ -16,6 +17,7 @@
     "perf:h5": "npm run perf:h5:dev && npm run perf:h5:prod",
     "smoke:mobile": "node scripts/playwright-smoke.mjs",
     "assets:audit": "node scripts/asset-audit.mjs",
+    "vercel:output": "node scripts/prepare-vercel-output.mjs",
     "assets:optimize": "node scripts/optimize-images.mjs",
     "model:optimize": "gltf-transform optimize assets/models/bread-package-optimized.glb assets/models/bread-package-optimized-web.glb --compress false --simplify false --texture-compress webp --texture-size 1024",
     "model:optimize:lite": "gltf-transform optimize assets/models/bread-package-optimized-web.glb assets/models/bread-package-optimized-lite.glb --compress false --simplify false --texture-compress webp --texture-size 768"

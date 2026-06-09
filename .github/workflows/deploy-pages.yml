@@ -39,6 +39,9 @@ jobs:
       - name: Audit referenced assets
         run: npm run assets:audit
 
+      - name: Check performance budget
+        run: npm run perf:budget
+
       - name: Lighthouse mobile baseline
         run: npm run perf:lighthouse
         continue-on-error: true

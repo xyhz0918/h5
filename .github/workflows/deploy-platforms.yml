@@ -1,0 +1,120 @@
+name: Deploy Netlify and Vercel
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID || 'c4dbebd9-6960-46f9-8284-201c267fbd42' }}
+  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_rFkBOZpLEAHuDG31SP5oBmLU' }}
+  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_uAW3C9fkoCGWFXSblpbgHZuFy2I6' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit referenced assets
+        run: npm run assets:audit
+
+      - name: Check performance budget
+        run: npm run perf:budget
+
+      - name: Prepare Vercel build output
+        run: npm run vercel:output
+
+      - name: Upload shared artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: h5-shared-build
+          path: |
+            dist
+            .vercel/output
+          include-hidden-files: true
+          retention-days: 3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download shared artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: h5-shared-build
+          path: .
+
+      - name: Check Netlify secret
+        id: netlify
+        shell: bash
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          if [[ -n "$NETLIFY_AUTH_TOKEN" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::NETLIFY_AUTH_TOKEN is missing. Netlify deploy will be skipped."
+          fi
+
+      - name: Deploy to Netlify
+        if: steps.netlify.outputs.ready == 'true'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: npx --yes netlify-cli deploy --prod --dir dist --functions netlify/functions --site "$NETLIFY_SITE_ID" --auth "$NETLIFY_AUTH_TOKEN"
+
+      - name: Check Vercel secret
+        id: vercel
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [[ -n "$VERCEL_TOKEN" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VERCEL_TOKEN is missing. Vercel deploy will be skipped."
+          fi
+
+      - name: Link Vercel project
+        if: steps.vercel.outputs.ready == 'true'
+        shell: bash
+        run: |
+          mkdir -p .vercel
+          cat > .vercel/project.json <<EOF
+          {"orgId":"$VERCEL_ORG_ID","projectId":"$VERCEL_PROJECT_ID"}
+          EOF
+
+      - name: Deploy to Vercel
+        if: steps.vercel.outputs.ready == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
