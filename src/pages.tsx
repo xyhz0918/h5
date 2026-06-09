@@ -841,6 +841,11 @@ export function IngredientScanPage({
   const sourceDragFrameRef = useRef(0);
   const sourceDragTransformRef = useRef<{ element: HTMLElement; x: number; y: number } | null>(null);
   const suppressIngredientClickRef = useRef(false);
+  const sourcePointerListenersRef = useRef<{
+    move: (event: PointerEvent) => void;
+    up: (event: PointerEvent) => void;
+    cancel: (event: PointerEvent) => void;
+  } | null>(null);
 
   useEffect(() => {
     ingredientIdsRef.current = acceptedIngredientIds;
@@ -848,6 +853,7 @@ export function IngredientScanPage({
 
   useEffect(() => {
     return () => {
+      detachSourcePointerListeners();
       window.cancelAnimationFrame(sourceDragFrameRef.current);
       sourceDragStateRef.current = null;
       sourceDragTransformRef.current = null;
@@ -906,23 +912,61 @@ export function IngredientScanPage({
     element.style.removeProperty("--source-drag-y");
   };
 
-  const isPointInsideRect = (event: ReactPointerEvent<HTMLElement>, rect: DOMRect, padding = 28) =>
-    event.clientX >= rect.left - padding &&
-    event.clientX <= rect.right + padding &&
-    event.clientY >= rect.top - padding &&
-    event.clientY <= rect.bottom + padding;
+  const isPointInsideRect = (clientX: number, clientY: number, rect: DOMRect, padding = 64) =>
+    clientX >= rect.left - padding &&
+    clientX <= rect.right + padding &&
+    clientY >= rect.top - padding &&
+    clientY <= rect.bottom + padding;
 
-  const finishIngredientPointerDrag = (event: ReactPointerEvent<HTMLElement>, shouldAccept: boolean) => {
+  const moveIngredientDrag = (pointerId: number, clientX: number, clientY: number) => {
     const dragState = sourceDragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    if (!dragState || dragState.pointerId !== pointerId) return;
+
+    const deltaX = clientX - dragState.startX;
+    const deltaY = clientY - dragState.startY;
+    const hasMoved = Math.abs(deltaX) + Math.abs(deltaY) > 4;
+    dragState.hasMoved = dragState.hasMoved || hasMoved;
+
+    if (dragState.hasMoved) {
+      writeSourceDragTransform(dragState.element, deltaX, deltaY);
+    }
+
+    const isInsideCore = isPointInsideRect(clientX, clientY, dragState.dropRect);
+    if (isInsideCore !== dragState.isInsideCore) {
+      dragState.isInsideCore = isInsideCore;
+      setCoreArmed(isInsideCore);
+    }
+  };
+
+  const detachSourcePointerListeners = () => {
+    const listeners = sourcePointerListenersRef.current;
+    if (!listeners) return;
+
+    window.removeEventListener("pointermove", listeners.move);
+    window.removeEventListener("pointerup", listeners.up);
+    window.removeEventListener("pointercancel", listeners.cancel);
+    sourcePointerListenersRef.current = null;
+  };
+
+  const finishIngredientDrag = (pointerId: number, clientX: number, clientY: number, shouldAccept: boolean) => {
+    const dragState = sourceDragStateRef.current;
+    if (!dragState || dragState.pointerId !== pointerId) return;
 
     sourceDragStateRef.current = null;
+    detachSourcePointerListeners();
+    const acceptedByDrop = shouldAccept && dragState.hasMoved && isPointInsideRect(clientX, clientY, dragState.dropRect);
+
+    if (acceptedByDrop) {
+      dragState.element.classList.add("accepted");
+      acceptIngredient(dragState.id);
+    }
+
     resetSourceDragTransform(dragState.element);
     setCoreArmed(false);
     setArmedIngredientId(null);
 
     try {
-      dragState.element.releasePointerCapture(event.pointerId);
+      dragState.element.releasePointerCapture(pointerId);
     } catch {
       // Pointer capture may already be released by the browser.
     }
@@ -934,9 +978,10 @@ export function IngredientScanPage({
       }, 0);
     }
 
-    if (shouldAccept) {
-      acceptIngredient(dragState.id);
-    }
+  };
+
+  const finishIngredientPointerDrag = (event: ReactPointerEvent<HTMLElement>, shouldAccept: boolean) => {
+    finishIngredientDrag(event.pointerId, event.clientX, event.clientY, shouldAccept);
   };
 
   const handleIngredientPointerDown = (
@@ -967,6 +1012,23 @@ export function IngredientScanPage({
     writeSourceDragTransform(element, 0, 0);
     setArmedIngredientId(item.id);
     setCoreArmed(false);
+    detachSourcePointerListeners();
+    sourcePointerListenersRef.current = {
+      move: (nativeEvent) => {
+        if (nativeEvent.pointerId !== event.pointerId) return;
+        nativeEvent.preventDefault();
+        moveIngredientDrag(nativeEvent.pointerId, nativeEvent.clientX, nativeEvent.clientY);
+      },
+      up: (nativeEvent) => {
+        finishIngredientDrag(nativeEvent.pointerId, nativeEvent.clientX, nativeEvent.clientY, true);
+      },
+      cancel: (nativeEvent) => {
+        finishIngredientDrag(nativeEvent.pointerId, nativeEvent.clientX, nativeEvent.clientY, false);
+      }
+    };
+    window.addEventListener("pointermove", sourcePointerListenersRef.current.move, { passive: false });
+    window.addEventListener("pointerup", sourcePointerListenersRef.current.up);
+    window.addEventListener("pointercancel", sourcePointerListenersRef.current.cancel);
 
     try {
       element.setPointerCapture(event.pointerId);
@@ -979,28 +1041,15 @@ export function IngredientScanPage({
     const dragState = sourceDragStateRef.current;
     if (!dragState || dragState.pointerId !== event.pointerId) return;
 
-    const deltaX = event.clientX - dragState.startX;
-    const deltaY = event.clientY - dragState.startY;
-    const hasMoved = Math.abs(deltaX) + Math.abs(deltaY) > 4;
-    dragState.hasMoved = dragState.hasMoved || hasMoved;
-
-    if (dragState.hasMoved) {
-      event.preventDefault();
-      writeSourceDragTransform(dragState.element, deltaX, deltaY);
-    }
-
-    const isInsideCore = isPointInsideRect(event, dragState.dropRect);
-    if (isInsideCore !== dragState.isInsideCore) {
-      dragState.isInsideCore = isInsideCore;
-      setCoreArmed(isInsideCore);
-    }
+    event.preventDefault();
+    moveIngredientDrag(event.pointerId, event.clientX, event.clientY);
   };
 
   const handleIngredientPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
     const dragState = sourceDragStateRef.current;
     if (!dragState || dragState.pointerId !== event.pointerId) return;
 
-    finishIngredientPointerDrag(event, dragState.hasMoved && isPointInsideRect(event, dragState.dropRect));
+    finishIngredientPointerDrag(event, true);
   };
 
   const ingestParticles = [
@@ -1041,9 +1090,10 @@ export function IngredientScanPage({
         onPointerDown={(event) => handleIngredientPointerDown(event, item, accepted)}
         onPointerMove={handleIngredientPointerMove}
         onPointerUp={handleIngredientPointerUp}
+        aria-hidden={accepted}
         aria-disabled={accepted}
         role="button"
-        tabIndex={0}
+        tabIndex={accepted ? -1 : 0}
       >
         <img src={item.image} alt={item.name} draggable={false} decoding="async" loading="eager" />
         <span className="source-card-state">{accepted ? "已录入" : "拖入 / 点击"}</span>

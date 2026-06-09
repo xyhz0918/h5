@@ -5541,7 +5541,7 @@ body.admin-mode #root {
 }
 
 .ingredient-capsule-page .source-core {
-  --source-core-width: min(374px, 59vw);
+  --source-core-width: 340px;
   grid-column: 1;
   grid-row: 1;
   position: relative;
@@ -5589,31 +5589,15 @@ body.admin-mode #root {
 }
 
 .ingredient-capsule-page .source-core-dropzone::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 1px dashed rgba(199, 255, 223, 0.42);
-  border-radius: inherit;
-  background: radial-gradient(ellipse at center, rgba(150, 255, 204, 0.13), transparent 68%);
-  box-shadow:
-    0 0 20px rgba(82, 255, 154, 0.18),
-    inset 0 0 18px rgba(202, 255, 224, 0.1);
-  opacity: 0;
-  transition:
-    opacity 180ms ease,
-    box-shadow 180ms ease;
-  pointer-events: none;
+  display: none;
 }
 
 .ingredient-capsule-page .source-lab-stage.is-throwing .source-core-dropzone::before {
-  opacity: 0.18;
+  opacity: 0;
 }
 
 .ingredient-capsule-page .source-lab-stage.core-armed .source-core-dropzone::before {
-  opacity: 0.58;
-  box-shadow:
-    0 0 26px rgba(160, 255, 210, 0.5),
-    inset 0 0 22px rgba(202, 255, 224, 0.18);
+  opacity: 0;
 }
 
 .ingredient-capsule-page .mixing-core {
@@ -5752,7 +5736,7 @@ body.admin-mode #root {
   left: 50%;
   top: 10px;
   z-index: 5;
-  width: min(330px, 58vw);
+  width: 330px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -5859,11 +5843,15 @@ body.admin-mode #root {
   transition: none;
 }
 
+.ingredient-capsule-page .source-image-card.accepted {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.84);
+}
+
 .ingredient-capsule-page .source-image-card.accepted img {
-  opacity: 0.72;
-  filter:
-    saturate(0.72)
-    drop-shadow(0 0 18px rgba(104, 255, 174, 0.52));
+  opacity: 0;
 }
 
 .ingredient-capsule-page .source-card-state {
