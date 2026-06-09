@@ -42,5 +42,5 @@ assets/product/quinoa-toast/product-info.xlsx
 assets/product/quinoa-toast/traceability-qr-photo.jpg
 assets/brand/logo/horsh-logo-color-reference.png
 
-# Local Netlify folder
+# Local deploy folders
 .netlify

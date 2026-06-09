@@ -1,0 +1,12 @@
+.codegraph/
+.git/
+.lighthouseci/
+.netlify/
+.playwright-cli/
+dist/
+node_modules/
+output/
+reports/
+test-results/
+*.local
+*.log

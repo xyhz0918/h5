@@ -2,7 +2,9 @@ import gsap from "gsap";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { assets } from "./lib/assets";
 import { bugOptions, factoryAreaSequence } from "./lib/content";
+import { trackFunnelEvent, type FunnelEventName } from "./lib/tracking";
 import { timestamp, workOrderId } from "./lib/time";
+import { AdminPage } from "./AdminPage";
 import { IntroMascotMorph, LoadingPage } from "./components/loading";
 import { BakingLivePage, HomePage, IngredientScanPage, PackingLivePage, ProofingLivePage, ReportPage, SelectPage, SoftRepairPage, WorkOrderPage } from "./pages";
 import type { FactoryAreaId, PageId, TransitionPhase, WorkOrder } from "./types";
@@ -86,6 +88,26 @@ const h5PageImagePreloadMap: Record<PageId, string[]> = {
 
 const imagePreloadCache = new Set<string>();
 const imageFilePattern = /\.(avif|gif|jpe?g|png|svg|webp)(\?|$)/i;
+const stageByPage: Partial<Record<PageId, string>> = {
+  select: "bug_select",
+  workOrder: "work_order",
+  ingredientScan: "ingredient",
+  softRepair: "pressing",
+  proofingLive: "proofing",
+  bakingLive: "baking",
+  packingLive: "packing",
+  report: "report"
+};
+const completedStageByTransition: Partial<Record<`${PageId}->${PageId}`, string>> = {
+  "home->select": "home",
+  "select->workOrder": "bug_select",
+  "workOrder->ingredientScan": "work_order",
+  "ingredientScan->softRepair": "ingredient",
+  "softRepair->proofingLive": "pressing",
+  "proofingLive->bakingLive": "proofing",
+  "bakingLive->packingLive": "baking",
+  "packingLive->report": "packing"
+};
 
 function preloadImage(src: string, loading: "eager" | "lazy" = "eager") {
   if (!src || imagePreloadCache.has(src) || !imageFilePattern.test(src)) return;
@@ -238,6 +260,10 @@ function clearPurchaseReturnSnapshot() {
 }
 
 function App() {
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
+    return <AdminPage />;
+  }
+
   const purchaseReturnSnapshot = useMemo(() => readPurchaseReturnSnapshot(), []);
   const [hasEntered, setHasEntered] = useState(Boolean(purchaseReturnSnapshot));
   const [showLoading, setShowLoading] = useState(!purchaseReturnSnapshot);
@@ -265,6 +291,8 @@ function App() {
   const loadingExitTimerRef = useRef<number | null>(null);
   const homeRepairTimerRef = useRef<number | null>(null);
   const introTimelineRef = useRef<ReturnType<typeof gsap.timeline> | null>(null);
+  const trackedCompletionKeysRef = useRef<Set<string>>(new Set());
+  const trackedReportIdsRef = useRef<Set<string>>(new Set());
 
   const selectedBug = useMemo(
     () => bugOptions.find((bug) => bug.id === selectedBugId) ?? null,
@@ -292,6 +320,42 @@ function App() {
   }, [description, solution]);
 
   const currentOrder = order ?? fallbackOrder;
+  const trackEvent = useCallback(
+    (eventName: FunnelEventName, data: Record<string, unknown> = {}) => {
+      trackFunnelEvent({
+        eventName,
+        page,
+        order,
+        selectedBugId,
+        bugType: selectedBug?.reportLabel ?? order?.bugType,
+        description: description.trim() || order?.description,
+        stage: typeof data.stage === "string" ? data.stage : stageByPage[page],
+        progress: typeof data.progress === "number" ? data.progress : undefined,
+        data: {
+          missionStage,
+          factoryReveal,
+          factoryAreaId,
+          viewedFactoryAreaIds,
+          repairCharge,
+          ingredientCount: ingredientIds.length,
+          ...data
+        }
+      });
+    },
+    [
+      description,
+      factoryAreaId,
+      factoryReveal,
+      ingredientIds.length,
+      missionStage,
+      order,
+      page,
+      repairCharge,
+      selectedBug,
+      selectedBugId,
+      viewedFactoryAreaIds
+    ]
+  );
   const reportImageCacheKey = useMemo(
     () =>
       JSON.stringify({
@@ -318,8 +382,90 @@ function App() {
     reportImageCacheRef.current = null;
   }, [reportImageCacheKey]);
 
+  useEffect(() => {
+    trackEvent("page_view", {
+      stage: stageByPage[page] ?? page
+    });
+  }, [page]);
+
+  useEffect(() => {
+    if (ingredientIds.length === 0) return;
+
+    trackEvent("ingredient_progress", {
+      stage: "ingredient",
+      progress: ingredientIds.length,
+      ingredientIds
+    });
+
+    if (ingredientIds.length >= 4) {
+      const key = `${currentOrder.id}:ingredient`;
+      if (!trackedCompletionKeysRef.current.has(key)) {
+        trackedCompletionKeysRef.current.add(key);
+        trackEvent("stage_completed", {
+          stage: "ingredient",
+          progress: 100,
+          ingredientIds
+        });
+      }
+    }
+  }, [ingredientIds]);
+
+  useEffect(() => {
+    if (repairCharge < 100) return;
+
+    const key = `${currentOrder.id}:pressing`;
+    if (trackedCompletionKeysRef.current.has(key)) return;
+
+    trackedCompletionKeysRef.current.add(key);
+    trackEvent("stage_completed", {
+      stage: "pressing",
+      progress: 100
+    });
+  }, [currentOrder.id, repairCharge, trackEvent]);
+
+  useEffect(() => {
+    if (page !== "report" || trackedReportIdsRef.current.has(currentOrder.id)) return;
+
+    trackedReportIdsRef.current.add(currentOrder.id);
+    trackEvent("report_generated", {
+      stage: "report",
+      progress: 100
+    });
+  }, [currentOrder.id, page, trackEvent]);
+
   const go = (target: PageId) => {
     setNotice("");
+    const completedStage = completedStageByTransition[`${page}->${target}` as `${PageId}->${PageId}`];
+
+    if (completedStage) {
+      const completionKey = `${currentOrder.id}:${completedStage}`;
+      if (!trackedCompletionKeysRef.current.has(completionKey)) {
+        trackedCompletionKeysRef.current.add(completionKey);
+        trackEvent("stage_completed", {
+          stage: completedStage,
+          fromPage: page,
+          toPage: target
+        });
+      }
+    }
+
+    if (stageByPage[target]) {
+      trackFunnelEvent({
+        eventName: "stage_entered",
+        page: target,
+        order,
+        selectedBugId,
+        bugType: selectedBug?.reportLabel ?? order?.bugType,
+        description: description.trim() || order?.description,
+        stage: stageByPage[target],
+        data: {
+          fromPage: page,
+          missionStage,
+          factoryReveal
+        }
+      });
+    }
+
     if (target === "home") {
       clearPurchaseReturnSnapshot();
     }
@@ -483,6 +629,20 @@ function App() {
 
   const selectBug = (id: string) => {
     setSelectedBugId((current) => (current === id ? current : id));
+    const bug = bugOptions.find((option) => option.id === id);
+    trackFunnelEvent({
+      eventName: "bug_selected",
+      page,
+      order,
+      selectedBugId: id,
+      bugType: bug?.reportLabel,
+      description,
+      stage: "bug_select",
+      data: {
+        bugTitle: bug?.title,
+        recommendation: bug?.recommendation
+      }
+    });
   };
 
   const submitBug = () => {
@@ -493,12 +653,28 @@ function App() {
 
     clearPurchaseReturnSnapshot();
     const now = new Date();
-    setOrder({
+    const nextOrder = {
       id: workOrderId(now),
       bugType: selectedBug.reportLabel,
       description: description.trim() || selectedBug.defaultDescription,
       createdAt: timestamp(now),
       priority: "★★★★★ 最高"
+    } satisfies WorkOrder;
+
+    setOrder(nextOrder);
+    trackFunnelEvent({
+      eventName: "order_created",
+      page,
+      order: nextOrder,
+      selectedBugId,
+      bugType: selectedBug.reportLabel,
+      description: nextOrder.description,
+      stage: "work_order",
+      data: {
+        bugTitle: selectedBug.title,
+        identity: selectedBug.identity,
+        recommendation: selectedBug.recommendation
+      }
     });
     setFactoryReveal(0);
     setFactoryAreaId("material");
@@ -551,8 +727,15 @@ function App() {
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      trackEvent("report_saved", {
+        stage: "report",
+        fileName: reportImageFileName
+      });
       setNotice("透明报告图片已生成，浏览器正在下载。");
     } catch {
+      trackEvent("report_save_failed", {
+        stage: "report"
+      });
       setNotice("保存图片失败，请截图保存当前透明报告。");
     }
   };
@@ -570,12 +753,20 @@ function App() {
 
           if (!navigator.canShare || navigator.canShare(shareData)) {
             await navigator.share(shareData);
+            trackEvent("report_shared", {
+              stage: "report",
+              method: "web_share_file"
+            });
             setNotice("分享面板已打开。");
             return;
           }
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
+          trackEvent("report_share_cancelled", {
+            stage: "report",
+            method: "web_share_file"
+          });
           setNotice("已取消分享。");
           return;
         }
@@ -585,10 +776,18 @@ function App() {
     if (navigator.share) {
       try {
         await navigator.share({ title, text });
+        trackEvent("report_shared", {
+          stage: "report",
+          method: "web_share_text"
+        });
         setNotice("分享面板已打开。");
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
+          trackEvent("report_share_cancelled", {
+            stage: "report",
+            method: "web_share_text"
+          });
           setNotice("已取消分享。");
           return;
         }
@@ -597,14 +796,25 @@ function App() {
 
     try {
       await navigator.clipboard.writeText(text);
+      trackEvent("report_shared", {
+        stage: "report",
+        method: "clipboard"
+      });
       setNotice("当前浏览器不支持直接分享，已复制分享文案。");
     } catch {
+      trackEvent("report_share_failed", {
+        stage: "report"
+      });
       setNotice("当前浏览器不支持直接分享，请手动截图分享透明报告。");
     }
   };
 
   const openPurchasePage = () => {
     const currentHref = window.location.href;
+    trackEvent("purchase_clicked", {
+      stage: "report",
+      url: productPurchaseUrl
+    });
 
     try {
       const snapshot = {
@@ -643,6 +853,13 @@ function App() {
     }, 1200);
   };
 
+  const setLikedWithTracking = (value: boolean) => {
+    setLiked(value);
+    trackEvent("liked_changed", {
+      liked: value
+    });
+  };
+
   const common = {
     go,
     notice,
@@ -669,7 +886,7 @@ function App() {
     ingredientIds,
     setIngredientIds,
     liked,
-    setLiked,
+    setLiked: setLikedWithTracking,
     saveReport,
     shareReport,
     openPurchasePage,

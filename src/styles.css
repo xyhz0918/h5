@@ -28,6 +28,10 @@ body {
     #010504;
 }
 
+body.admin-mode {
+  overflow: auto;
+}
+
 button,
 textarea {
   font: inherit;
@@ -46,6 +50,14 @@ button {
     radial-gradient(circle at 50% 12%, rgba(58, 255, 145, 0.12), transparent 36%),
     linear-gradient(180deg, rgba(0, 8, 5, 0.88), rgba(0, 0, 0, 0.94)),
     #020906;
+}
+
+body.admin-mode #root {
+  display: block;
+  min-height: 100vh;
+  height: auto;
+  overflow: visible;
+  place-items: unset;
 }
 
 .screen {
@@ -94,6 +106,194 @@ button {
 
 .ingredient-capsule-page .screen-frame {
   overflow: hidden;
+}
+
+.admin-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(79, 255, 167, 0.18), transparent 34%),
+    linear-gradient(180deg, #03140f 0%, #020605 100%);
+  color: #e9fff3;
+  padding: 32px 18px;
+}
+
+.admin-shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.admin-hero,
+.admin-login,
+.admin-toolbar,
+.admin-stats article,
+.admin-table-wrap {
+  border: 1px solid rgba(94, 255, 169, 0.22);
+  background: rgba(4, 17, 13, 0.86);
+  box-shadow: 0 0 28px rgba(55, 255, 152, 0.12);
+}
+
+.admin-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.admin-hero span,
+.admin-stats span {
+  color: #74ffb3;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.admin-hero h1 {
+  margin: 8px 0;
+  font-size: 30px;
+  letter-spacing: 0;
+}
+
+.admin-hero p {
+  margin: 0;
+  color: rgba(233, 255, 243, 0.72);
+}
+
+.admin-login {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+  margin-top: 18px;
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.admin-login label {
+  font-size: 14px;
+  color: rgba(233, 255, 243, 0.78);
+}
+
+.admin-login input {
+  height: 44px;
+  border: 1px solid rgba(94, 255, 169, 0.28);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.32);
+  color: #e9fff3;
+  padding: 0 12px;
+}
+
+.admin-login button,
+.admin-toolbar button {
+  height: 42px;
+  border: 0;
+  border-radius: 6px;
+  background: #4dff96;
+  color: #021108;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-login button:disabled,
+.admin-toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.admin-login p {
+  margin: 0;
+  color: #ff8f8f;
+}
+
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.admin-toolbar div,
+.admin-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-toolbar button {
+  padding: 0 14px;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.admin-stats article {
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.admin-stats b {
+  display: block;
+  margin-top: 8px;
+  font-size: 26px;
+}
+
+.admin-table-wrap {
+  overflow: auto;
+  margin-top: 14px;
+  border-radius: 8px;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-table th,
+.admin-table td {
+  border-bottom: 1px solid rgba(94, 255, 169, 0.14);
+  padding: 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: #74ffb3;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  max-width: 260px;
+  color: rgba(233, 255, 243, 0.82);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .admin-page {
+    padding: 18px 10px;
+  }
+
+  .admin-hero {
+    align-items: flex-start;
+    padding: 18px;
+  }
+
+  .admin-hero h1 {
+    font-size: 24px;
+  }
+
+  .admin-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .screen::-webkit-scrollbar {
