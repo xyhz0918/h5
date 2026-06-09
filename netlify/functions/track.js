@@ -1,4 +1,4 @@
-import { forwardToGoogleSheet, normalizeEvent, parseJsonBody } from "../../server/sheets-client.js";
+import { normalizeEvent, parseJsonBody, saveTrackingEvent } from "../../server/supabase-client.js";
 
 const headers = {
   "Content-Type": "application/json"
@@ -29,7 +29,7 @@ export const handler = async (event) => {
       };
     }
 
-    await forwardToGoogleSheet("track", { event: trackingEvent });
+    await saveTrackingEvent(trackingEvent);
     return {
       statusCode: 200,
       headers,

@@ -1,4 +1,4 @@
-import { checkAdminPassword, forwardToGoogleSheet, parseJsonBody } from "../../server/sheets-client.js";
+import { checkAdminPassword, listTrackingEvents, parseJsonBody } from "../../server/supabase-client.js";
 
 const headers = {
   "Content-Type": "application/json"
@@ -29,14 +29,14 @@ export const handler = async (event) => {
 
   try {
     const limit = Math.min(500, Math.max(1, Number(body.limit) || 300));
-    const data = await forwardToGoogleSheet("list", { limit });
+    const rows = await listTrackingEvents(limit);
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         ok: true,
-        rows: data.rows || []
+        rows
       })
     };
   } catch (error) {

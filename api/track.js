@@ -1,4 +1,4 @@
-import { forwardToGoogleSheet, normalizeEvent, parseJsonBody } from "../server/sheets-client.js";
+import { normalizeEvent, parseJsonBody, saveTrackingEvent } from "../server/supabase-client.js";
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    await forwardToGoogleSheet("track", { event });
+    await saveTrackingEvent(event);
     res.status(200).json({ ok: true });
   } catch (error) {
     res.status(error.code === "CONFIG_MISSING" ? 503 : error.statusCode || 500).json({

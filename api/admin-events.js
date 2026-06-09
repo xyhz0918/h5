@@ -1,4 +1,4 @@
-import { checkAdminPassword, forwardToGoogleSheet, parseJsonBody } from "../server/sheets-client.js";
+import { checkAdminPassword, listTrackingEvents, parseJsonBody } from "../server/supabase-client.js";
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -20,10 +20,10 @@ export default async function handler(req, res) {
 
   try {
     const limit = Math.min(500, Math.max(1, Number(body.limit) || 300));
-    const data = await forwardToGoogleSheet("list", { limit });
+    const rows = await listTrackingEvents(limit);
     res.status(200).json({
       ok: true,
-      rows: data.rows || []
+      rows
     });
   } catch (error) {
     res.status(error.code === "CONFIG_MISSING" ? 503 : error.statusCode || 500).json({
