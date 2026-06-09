@@ -4,6 +4,12 @@
   functions = "netlify/functions"
 
 [[redirects]]
+  from = "https://zhyx45.xyz/*"
+  to = "https://www.zhyx45.xyz/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/api/track"
   to = "/.netlify/functions/track"
   status = 200

@@ -1,3 +1,4 @@
+https://zhyx45.xyz/* https://www.zhyx45.xyz/:splat 301!
 /api/track /.netlify/functions/track 200
 /api/admin-events /.netlify/functions/admin-events 200
 /admin /index.html 200
