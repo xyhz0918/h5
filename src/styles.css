@@ -73,7 +73,26 @@ body.admin-mode #root {
     radial-gradient(circle at 50% 18%, rgba(42, 255, 122, 0.08), transparent 36%),
     linear-gradient(180deg, rgba(0, 8, 5, 0.86), rgba(0, 0, 0, 0.94)),
     #020906;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   scrollbar-width: none;
+}
+
+.screen *,
+.matrix-entry,
+.matrix-entry * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.screen input,
+.screen textarea,
+.screen [contenteditable="true"] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .screen-frame-shell {

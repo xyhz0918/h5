@@ -234,18 +234,6 @@ function preloadPageImagesBatched(pageId: PageId, lookahead = 2, loading: "eager
   });
 }
 
-function preloadFlowImagesAfterHome() {
-  const laterPageSources = h5PagePreloadOrder
-    .slice(1)
-    .flatMap((page) => h5PageImagePreloadMap[page]);
-
-  return preloadImagesInBatches(laterPageSources, {
-    loading: "lazy",
-    batchSize: 2,
-    delayMs: 260
-  });
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -389,20 +377,15 @@ function App() {
   );
 
   useEffect(() => {
-    preloadPageImages("home", 1, "eager");
+    preloadPageImages("home", 0, "eager");
   }, []);
 
   useEffect(() => {
-    if (!hasEntered) return undefined;
-    return preloadPageImagesBatched(page, 2, "lazy");
-  }, [hasEntered, page]);
-
-  useEffect(() => {
-    if (!hasEntered || showLoading || transitionPhase !== "home" || page !== "home") {
+    if (!hasEntered || showLoading || transitionPhase === "handoff") {
       return undefined;
     }
 
-    return preloadFlowImagesAfterHome();
+    return preloadPageImagesBatched(page, page === "home" ? 1 : 2, "lazy");
   }, [hasEntered, page, showLoading, transitionPhase]);
 
   const solution = selectedBug ?? bugOptions[0];

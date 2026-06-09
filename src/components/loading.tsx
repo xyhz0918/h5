@@ -642,6 +642,8 @@ export function LoadingPage({
 
     const image = new Image();
     image.crossOrigin = "anonymous";
+    image.decoding = "async";
+    (image as HTMLImageElement & { fetchPriority?: "high" | "low" | "auto" }).fetchPriority = "high";
 
     let disposed = false;
     let points: CodePoint[] = [];
@@ -679,30 +681,36 @@ export function LoadingPage({
       const maskContext = mask.getContext("2d", { willReadFrequently: true });
       if (!maskContext) return;
 
-      mask.width = width;
-      mask.height = height;
-      const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+      const maskScale = lowPowerCanvas ? 0.46 : 0.58;
+      const maskWidth = Math.max(1, Math.floor(width * maskScale));
+      const maskHeight = Math.max(1, Math.floor(height * maskScale));
+      const pointScaleX = width / maskWidth;
+      const pointScaleY = height / maskHeight;
+
+      mask.width = maskWidth;
+      mask.height = maskHeight;
+      const scale = Math.min(maskWidth / image.naturalWidth, maskHeight / image.naturalHeight);
       const drawWidth = image.naturalWidth * scale;
       const drawHeight = image.naturalHeight * scale;
-      const offsetX = (width - drawWidth) / 2;
-      const offsetY = (height - drawHeight) / 2;
+      const offsetX = (maskWidth - drawWidth) / 2;
+      const offsetY = (maskHeight - drawHeight) / 2;
 
-      maskContext.clearRect(0, 0, width, height);
+      maskContext.clearRect(0, 0, maskWidth, maskHeight);
       maskContext.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 
-      const data = maskContext.getImageData(0, 0, width, height).data;
+      const data = maskContext.getImageData(0, 0, maskWidth, maskHeight).data;
       const nextPoints: CodePoint[] = [];
-      const step = lowPowerCanvas ? Math.max(12, Math.round(width / 30)) : Math.max(9, Math.round(width / 38));
+      const step = lowPowerCanvas ? Math.max(5, Math.round(maskWidth / 30)) : Math.max(4, Math.round(maskWidth / 38));
 
-      for (let y = step * 0.7; y < height; y += step) {
-        for (let x = step * 0.55; x < width; x += step) {
-          const index = (Math.floor(y) * width + Math.floor(x)) * 4 + 3;
+      for (let y = step * 0.7; y < maskHeight; y += step) {
+        for (let x = step * 0.55; x < maskWidth; x += step) {
+          const index = (Math.floor(y) * maskWidth + Math.floor(x)) * 4 + 3;
           const maskAlpha = data[index] / 255;
           if (maskAlpha < 0.18 || Math.random() > Math.min(0.96, maskAlpha + 0.24)) continue;
 
           nextPoints.push({
-            x: x + (Math.random() - 0.5) * step * 0.72,
-            y: y + (Math.random() - 0.5) * step * 0.72,
+            x: x * pointScaleX + (Math.random() - 0.5) * step * 0.72 * pointScaleX,
+            y: y * pointScaleY + (Math.random() - 0.5) * step * 0.72 * pointScaleY,
             token: mascotTokens[Math.floor(Math.random() * mascotTokens.length)],
             delay: Math.random() * 0.18,
             size: 9 + Math.random() * 4,
@@ -822,7 +830,7 @@ export function LoadingPage({
 
           <section className="matrix-system-panel">
             <div className="matrix-transition-mascot" aria-hidden="true">
-              <img src={assets.homeMascot} alt="" />
+              <img src={assets.homeMascot} alt="" decoding="async" loading="eager" fetchPriority="high" />
               <canvas ref={mascotCodeCanvasRef} className="matrix-mascot-code-canvas" />
             </div>
 
