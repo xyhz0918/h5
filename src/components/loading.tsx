@@ -830,7 +830,7 @@ export function LoadingPage({
 
           <section className="matrix-system-panel">
             <div className="matrix-transition-mascot" aria-hidden="true">
-              <img src={assets.homeMascot} alt="" decoding="async" loading="eager" fetchPriority="high" />
+              <img src={assets.homeMascot} alt="" decoding="async" loading="eager" />
               <canvas ref={mascotCodeCanvasRef} className="matrix-mascot-code-canvas" />
             </div>
 

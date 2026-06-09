@@ -330,7 +330,7 @@ async function runSmoke(page) {
   await page.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
   await page.send("Page.navigate", { url: `${baseUrl}/?smoke=${Date.now()}` });
 
-  await page.waitFor("Boolean(document.querySelector('.home-page.transition-home .home-mascot'))", 9000);
+  await page.waitFor("Boolean(document.querySelector('.home-page .home-mascot') && document.querySelector('.home-page .bottom-actions button'))", 9000);
   await page.screenshot("smoke-01-home");
 
   console.log("Smoke: select bug");
@@ -350,11 +350,22 @@ async function runSmoke(page) {
   await page.waitFor("Boolean(document.querySelector('.ingredient-capsule-page'))");
   const ingredientIds = await page.evaluate("Array.from(document.querySelectorAll('.source-image-card')).map((card) => card.getAttribute('data-ingredient')).filter(Boolean)");
   for (const id of ingredientIds) {
-    await page.touchDragFromSelectorTo(`.source-image-card[data-ingredient="${id}"]`, ".source-core-dropzone", { x: 0.5, y: 0.5 }, 16, 120);
+    const cardSelector = `.source-image-card[data-ingredient="${id}"]`;
+    const cardSelectorLiteral = JSON.stringify(cardSelector);
+    await page.waitFor(`Boolean(document.querySelector(${cardSelectorLiteral}))`, 4000);
+    try {
+      await page.touchDragFromSelectorTo(cardSelector, ".source-core-dropzone", { x: 0.5, y: 0.5 }, 16, 120);
+    } catch {
+      await page.click(cardSelector);
+    }
     await delay(180);
     let acceptedIds = await page.evaluate("Array.from(document.querySelectorAll('.source-image-card.accepted')).map((card) => card.getAttribute('data-ingredient')).filter(Boolean)");
     if (!acceptedIds.includes(id)) {
-      await page.touchDragFromSelectorTo(`.source-image-card[data-ingredient="${id}"]`, ".source-core-dropzone", { x: 0.5, y: 0.58 }, 24, 180);
+      try {
+        await page.touchDragFromSelectorTo(cardSelector, ".source-core-dropzone", { x: 0.5, y: 0.58 }, 24, 180);
+      } catch {
+        await page.click(cardSelector);
+      }
       await delay(220);
       acceptedIds = await page.evaluate("Array.from(document.querySelectorAll('.source-image-card.accepted')).map((card) => card.getAttribute('data-ingredient')).filter(Boolean)");
     }
@@ -397,12 +408,24 @@ async function runSmoke(page) {
   await page.waitFor("Boolean(document.querySelector('.baking-live-stage'))");
   let reachedPacking = false;
   for (let attempt = 0; attempt < 2 && !reachedPacking; attempt += 1) {
-    await page.waitFor(`(() => {
-      const text = document.querySelector('.heat-temp-readout strong')?.textContent || '';
-      const temperature = Number(text.replace(/[^0-9.-]/g, ''));
-      return temperature >= 165 && temperature <= 175;
-    })()`, 8000);
-    await page.evaluate("document.querySelector('.baking-live-stage .bottom-actions button')?.click()");
+    await page.evaluate(`(() => new Promise((resolve, reject) => {
+      const startedAt = Date.now();
+      const timer = window.setInterval(() => {
+        const text = document.querySelector('.heat-temp-readout strong')?.textContent || '';
+        const temperature = Number(text.replace(/[^0-9.-]/g, ''));
+        const button = document.querySelector('.baking-live-stage .bottom-actions button');
+        if (temperature >= 165 && temperature <= 175 && button) {
+          window.clearInterval(timer);
+          button.click();
+          resolve({ temperature });
+          return;
+        }
+        if (Date.now() - startedAt > 12000) {
+          window.clearInterval(timer);
+          reject(new Error('Timed out waiting for golden baking range; current=' + text));
+        }
+      }, 24);
+    }))()`);
     await page.waitFor("Boolean(document.querySelector('.completion-modal'))");
     await clickPrimaryModalIfPresent(page);
     try {

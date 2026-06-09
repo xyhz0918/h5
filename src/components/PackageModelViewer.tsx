@@ -22,6 +22,16 @@ const MAX_TEXTURE_ANISOTROPY = 4;
 const REVEAL_SETTLE_EPSILON = 0.0015;
 const packageModelSceneCache = new Map<string, Promise<THREE.Object3D>>();
 
+function getSafeRenderPixelRatio() {
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const shortSide = Math.min(window.innerWidth || 0, window.innerHeight || 0);
+  const cpuCores = navigator.hardwareConcurrency || 4;
+  const mobileRenderCap = shortSide > 0 && shortSide <= 480 ? 1.5 : MAX_RENDER_PIXEL_RATIO;
+  const lowCoreRenderCap = cpuCores <= 4 ? 1.5 : MAX_RENDER_PIXEL_RATIO;
+
+  return Math.min(devicePixelRatio, mobileRenderCap, lowCoreRenderCap, MAX_RENDER_PIXEL_RATIO);
+}
+
 function loadPackageModelScene(src: string) {
   const cachedScene = packageModelSceneCache.get(src);
   if (cachedScene) return cachedScene;
@@ -137,8 +147,8 @@ export const PackageModelViewer = forwardRef<PackageModelViewerHandle, PackageMo
     const camera = new THREE.PerspectiveCamera(25, 1, 0.01, 100);
     camera.position.set(0, 0.08, 6.6);
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_PIXEL_RATIO));
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "low-power" });
+    renderer.setPixelRatio(getSafeRenderPixelRatio());
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.LinearToneMapping;
     renderer.toneMappingExposure = 1.1;
@@ -197,6 +207,7 @@ export const PackageModelViewer = forwardRef<PackageModelViewerHandle, PackageMo
     const resize = () => {
       const width = Math.max(1, container.clientWidth);
       const height = Math.max(1, container.clientHeight);
+      renderer.setPixelRatio(getSafeRenderPixelRatio());
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();

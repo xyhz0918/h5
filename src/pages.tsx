@@ -44,6 +44,34 @@ const PackageModelViewer = lazy(() =>
 
 const packageModelPreloadPromises = new Map<string, Promise<unknown>>();
 
+type NetworkInformationLike = {
+  saveData?: boolean;
+  effectiveType?: string;
+  downlink?: number;
+};
+
+function getNetworkInformation() {
+  if (typeof navigator === "undefined") return null;
+
+  const nav = navigator as Navigator & {
+    connection?: NetworkInformationLike;
+    mozConnection?: NetworkInformationLike;
+    webkitConnection?: NetworkInformationLike;
+  };
+
+  return nav.connection ?? nav.mozConnection ?? nav.webkitConnection ?? null;
+}
+
+function shouldPreloadHeavyPackageModel() {
+  const connection = getNetworkInformation();
+  if (!connection) return true;
+  if (connection.saveData) return false;
+  if (connection.effectiveType && /^(slow-2g|2g)$/i.test(connection.effectiveType)) return false;
+  if (typeof connection.downlink === "number" && connection.downlink > 0 && connection.downlink < 1.2) return false;
+
+  return true;
+}
+
 function scheduleIdleTask(task: () => void) {
   if (typeof window === "undefined") return;
 
@@ -59,8 +87,9 @@ function scheduleIdleTask(task: () => void) {
   window.setTimeout(task, 350);
 }
 
-function preloadPackageModelAssets(modelSrc: string) {
+function preloadPackageModelAssets(modelSrc: string, { force = false }: { force?: boolean } = {}) {
   if (typeof window === "undefined" || !modelSrc) return;
+  if (!force && !shouldPreloadHeavyPackageModel()) return;
 
   scheduleIdleTask(() => {
     if (packageModelPreloadPromises.has(modelSrc)) return;
@@ -1832,7 +1861,7 @@ export function PackingLivePage(props: PageProps) {
   };
 
   useEffect(() => {
-    preloadPackageModelAssets(assets.packageModel);
+    preloadPackageModelAssets(assets.packageModel, { force: true });
   }, []);
 
   useEffect(() => {
