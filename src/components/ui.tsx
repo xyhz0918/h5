@@ -61,7 +61,15 @@ function MotionLayer() {
   );
 }
 
-export function TopBar({ onBack, progress }: { onBack?: () => void; progress?: string }) {
+export function TopBar({
+  audioToggle,
+  onBack,
+  progress
+}: {
+  audioToggle?: ReactNode;
+  onBack?: () => void;
+  progress?: string;
+}) {
   return (
     <header className="top-bar">
       <div className="brand-side">
@@ -73,10 +81,13 @@ export function TopBar({ onBack, progress }: { onBack?: () => void; progress?: s
         <img src={assets.logoCompact} alt="HORSH 豪士" className="logo" />
         {progress && <span className="step-pill">{progress}</span>}
       </div>
-      <div className="online-panel">
-        <span />
-        <b>SYSTEM STATUS</b>
-        <strong>ONLINE</strong>
+      <div className="top-status-side">
+        {audioToggle}
+        <div className="online-panel">
+          <span />
+          <b>FACTORY STATUS</b>
+          <strong>ONLINE</strong>
+        </div>
       </div>
     </header>
   );

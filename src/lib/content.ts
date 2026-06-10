@@ -31,12 +31,12 @@ export const bugOptions: BugOption[] = [
   },
   {
     id: "commute",
-    title: "通勤早餐加载失败",
-    desc: "包、手机、地铁卡都在线，早餐入口却卡住",
+    title: "通勤早餐状态掉线",
+    desc: "包、手机、地铁卡都在线，早餐补给却没跟上",
     icon: PackageOpen,
-    reportLabel: "通勤早餐加载失败",
-    orderLabel: "通勤早餐加载失败",
-    defaultDescription: "通勤路上节奏太快，早餐状态加载失败，希望更省心、更好入口。",
+    reportLabel: "通勤早餐状态掉线",
+    orderLabel: "通勤早餐状态掉线",
+    defaultDescription: "通勤路上节奏太快，早餐补给没跟上，希望更省心、更好入口。",
     abnormalRole: "通勤加载怪",
     identity: "移动早餐玩家",
     recommendation: "豪士吐司便携组合",
@@ -127,6 +127,8 @@ export const matrixRainPhrases = [
   ["\u597d", "\u5403"],
   ["\u8c6a", "\u58eb", "\u597d", "\u5403"]
 ];
+
+export const reportSlogan = "豪士豪士，好吃好吃";
 
 export const factoryAreaSequence: FactoryAreaId[] = ["material", "pressing", "proofing", "baking", "packing"];
 export const designCanvasWidth = 640;

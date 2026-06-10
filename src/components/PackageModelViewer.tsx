@@ -151,12 +151,12 @@ export const PackageModelViewer = forwardRef<PackageModelViewerHandle, PackageMo
     renderer.setPixelRatio(getSafeRenderPixelRatio());
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.LinearToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 1.16;
     renderer.domElement.className = "package-model-canvas";
     container.appendChild(renderer.domElement);
 
-    const ambientLight = new THREE.HemisphereLight(0xffffff, 0x1f2d28, 1.26);
-    const frontSoftLight = new THREE.DirectionalLight(0xfff8ec, 1.12);
+    const ambientLight = new THREE.HemisphereLight(0xffffff, 0x07110b, 1.14);
+    const frontSoftLight = new THREE.DirectionalLight(0xfff6e7, 1.18);
     frontSoftLight.position.set(0.1, 1.9, 5.8);
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.48);
     keyLight.position.set(3.3, 4.4, 5.4);

@@ -6,7 +6,7 @@ export const assets = {
   bgToastLab: new URL("../../assets/images/backgrounds/bg-toast-lab.webp", import.meta.url).href,
   bgTerminal: new URL("../../assets/images/backgrounds/bg-terminal-corridor.webp", import.meta.url).href,
   homePlatform: new URL("../../assets/images/home/home-platform-optimized.webp", import.meta.url).href,
-  homeMascot: new URL("../../assets/images/home/home-mascot.webp", import.meta.url).href,
+  homeMascot: new URL("../../assets/images/home/home-mascot-680.webp", import.meta.url).href,
   homePanelOnline: new URL("../../assets/images/home/home-panel-online.webp", import.meta.url).href,
   homePanelPlan: new URL("../../assets/images/home/home-panel-plan.webp", import.meta.url).href,
   homePanelBread: new URL("../../assets/images/home/home-panel-bread.webp", import.meta.url).href,
@@ -14,6 +14,7 @@ export const assets = {
   homePanelComplete: new URL("../../assets/images/home/home-panel-complete.webp", import.meta.url).href,
   mascotField: new URL("../../assets/images/mascot/mascot-field-agent_attr1_subject.webp", import.meta.url).href,
   mascotOperator: new URL("../../assets/images/mascot/mascot-operator-terminal-v7-optimized.webp", import.meta.url).href,
+  mascotGuardianShield: new URL("../../assets/images/mascot/mascot-guardian-shield-report.webp", import.meta.url).href,
   factoryCutout: new URL("../../assets/images/factory/haoshi-transparent-factory-cutout-optimized.webp", import.meta.url).href,
   ingredientMixer: new URL("../../assets/images/ingredient/mixing-core-transparent.webp", import.meta.url).href,
   ingredientCardGluten: new URL("../../assets/images/ui/图层 1.webp", import.meta.url).href,
@@ -32,6 +33,7 @@ export const assets = {
   proofingMarkerIdeal: new URL("../../assets/images/proofing/slider-marker-ideal-yellowgreen.webp", import.meta.url).href,
   proofingMarkerHigh: new URL("../../assets/images/proofing/slider-marker-deviated-orange.webp", import.meta.url).href,
   packageModel: new URL("../../assets/models/bread-package-optimized-lite.glb", import.meta.url).href,
-  productBoxCropped: new URL("../../assets/product/quinoa-toast/box-420g-3d-cropped.webp", import.meta.url).href,
-  productFrontCropped: new URL("../../assets/product/quinoa-toast/pouch-front-cropped.webp", import.meta.url).href
+  productBoxCropped: new URL("../../assets/product/quinoa-toast/box-420g-3d-cropped-480.webp", import.meta.url).href,
+  productFrontCropped: new URL("../../assets/product/quinoa-toast/pouch-front-cropped-640.webp", import.meta.url).href,
+  entryThemeBgm: new URL("../../assets/audio/bgm/horsh-entry-theme.wav", import.meta.url).href
 };

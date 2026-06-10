@@ -1,0 +1,286 @@
+{
+  "states": [
+    {
+      "checkpoint": 120,
+      "state": {
+        "at": 791,
+        "page": "screen home-page transition-handoff home-arrival home-repair-active",
+        "homeClass": "screen home-page transition-handoff home-arrival home-repair-active",
+        "veilZ": "2",
+        "veilOpacity": "0.58",
+        "morphZ": "140",
+        "morphOpacity": "1",
+        "mascotOpacity": "0",
+        "panelCount": 5,
+        "loaded": true,
+        "panels": [
+          {
+            "cls": "home-float-panel home-panel-online",
+            "x": 37,
+            "y": 158,
+            "w": 140,
+            "h": 111,
+            "opacity": "0.920123",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-plan",
+            "x": 473,
+            "y": 154,
+            "w": 128,
+            "h": 108,
+            "opacity": "0.92",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-bread is-focus",
+            "x": 477,
+            "y": 280,
+            "w": 118,
+            "h": 169,
+            "opacity": "0.94",
+            "z": "5"
+          },
+          {
+            "cls": "home-float-panel home-panel-scan",
+            "x": 49,
+            "y": 372,
+            "w": 120,
+            "h": 138,
+            "opacity": "0.9",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-complete",
+            "x": 429,
+            "y": 453,
+            "w": 104,
+            "h": 120,
+            "opacity": "0.900113",
+            "z": "1"
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": 650,
+      "state": {
+        "at": 3022,
+        "page": "screen home-page transition-home  ",
+        "homeClass": "screen home-page transition-home  ",
+        "veilZ": "1",
+        "veilOpacity": "0.12",
+        "morphZ": null,
+        "morphOpacity": null,
+        "mascotOpacity": "1",
+        "panelCount": 5,
+        "loaded": true,
+        "panels": [
+          {
+            "cls": "home-float-panel home-panel-online",
+            "x": 43,
+            "y": 150,
+            "w": 138,
+            "h": 108,
+            "opacity": "0.999992",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-plan",
+            "x": 467,
+            "y": 161,
+            "w": 126,
+            "h": 106,
+            "opacity": "0.92",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-bread is-focus",
+            "x": 478,
+            "y": 276,
+            "w": 120,
+            "h": 172,
+            "opacity": "0.94",
+            "z": "5"
+          },
+          {
+            "cls": "home-float-panel home-panel-scan",
+            "x": 49,
+            "y": 372,
+            "w": 120,
+            "h": 138,
+            "opacity": "1",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-complete",
+            "x": 422,
+            "y": 458,
+            "w": 108,
+            "h": 124,
+            "opacity": "0.979649",
+            "z": "1"
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": 950,
+      "state": {
+        "at": 4405,
+        "page": "screen home-page transition-home  ",
+        "homeClass": "screen home-page transition-home  ",
+        "veilZ": "1",
+        "veilOpacity": "0.12",
+        "morphZ": null,
+        "morphOpacity": null,
+        "mascotOpacity": "1",
+        "panelCount": 5,
+        "loaded": true,
+        "panels": [
+          {
+            "cls": "home-float-panel home-panel-online",
+            "x": 40,
+            "y": 156,
+            "w": 138,
+            "h": 108,
+            "opacity": "0.948947",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-plan",
+            "x": 470,
+            "y": 160,
+            "w": 124,
+            "h": 104,
+            "opacity": "0.92",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-bread is-focus",
+            "x": 477,
+            "y": 280,
+            "w": 118,
+            "h": 169,
+            "opacity": "0.94",
+            "z": "5"
+          },
+          {
+            "cls": "home-float-panel home-panel-scan",
+            "x": 50,
+            "y": 372,
+            "w": 120,
+            "h": 138,
+            "opacity": "0.95",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-complete",
+            "x": 426,
+            "y": 455,
+            "w": 106,
+            "h": 121,
+            "opacity": "0.937665",
+            "z": "1"
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": 1900,
+      "state": {
+        "at": 6446,
+        "page": "screen home-page transition-home  ",
+        "homeClass": "screen home-page transition-home  ",
+        "veilZ": "1",
+        "veilOpacity": "0.12",
+        "morphZ": null,
+        "morphOpacity": null,
+        "mascotOpacity": "1",
+        "panelCount": 5,
+        "loaded": true,
+        "panels": [
+          {
+            "cls": "home-float-panel home-panel-online",
+            "x": 40,
+            "y": 155,
+            "w": 137,
+            "h": 108,
+            "opacity": "0.953663",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-plan",
+            "x": 473,
+            "y": 154,
+            "w": 128,
+            "h": 108,
+            "opacity": "0.92",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-bread is-focus",
+            "x": 478,
+            "y": 275,
+            "w": 120,
+            "h": 172,
+            "opacity": "0.94",
+            "z": "5"
+          },
+          {
+            "cls": "home-float-panel home-panel-scan",
+            "x": 51,
+            "y": 372,
+            "w": 120,
+            "h": 138,
+            "opacity": "0.95",
+            "z": "4"
+          },
+          {
+            "cls": "home-float-panel home-panel-complete",
+            "x": 427,
+            "y": 454,
+            "w": 105,
+            "h": 121,
+            "opacity": "0.920864",
+            "z": "1"
+          }
+        ]
+      }
+    }
+  ],
+  "logs": [
+    {
+      "type": "debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connected."
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+    },
+    {
+      "type": "error",
+      "text": "Warning: React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element.%s fetchPriority fetchpriority \n    at img\n    at div\n    at HomeImagePanel (http://127.0.0.1:5176/src/pages.tsx?t=1781003412017:133:3)\n    at section\n    at div\n    at div\n    at div\n    at main\n    at Screen (http://127.0.0.1:5176/src/components/ui.tsx?t=1780997419090:10:3)\n    at HomePage (http://127.0.0.1:5176/src/pages.tsx?t=1781003412017:155:28)\n    at App (http://127.0.0.1:5176/src/App.tsx?t=1781006158184:288:34)"
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connected."
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+    },
+    {
+      "type": "error",
+      "text": "Warning: React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element.%s fetchPriority fetchpriority \n    at img\n    at div\n    at HomeImagePanel (http://127.0.0.1:5176/src/pages.tsx?t=1781003412017:133:3)\n    at section\n    at div\n    at div\n    at div\n    at main\n    at Screen (http://127.0.0.1:5176/src/components/ui.tsx?t=1780997419090:10:3)\n    at HomePage (http://127.0.0.1:5176/src/pages.tsx?t=1781003412017:155:28)\n    at App (http://127.0.0.1:5176/src/App.tsx?t=1781006158184:288:34)"
+    }
+  ]
+}

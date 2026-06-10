@@ -1,0 +1,283 @@
+{
+  "states": [
+    {
+      "checkpoint": 200,
+      "state": {
+        "cls": "screen home-page transition-handoff home-arrival home-repair-active",
+        "veilZ": "2",
+        "veilOpacity": "0.58",
+        "morphZ": "140",
+        "morphOpacity": "1",
+        "mascotOpacity": "0",
+        "panelCount": 5,
+        "panels": [
+          {
+            "cls": "home-float-panel home-panel-online",
+            "x": 166,
+            "y": 316,
+            "w": 140,
+            "h": 111,
+            "opacity": "0.92",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 339
+          },
+          {
+            "cls": "home-float-panel home-panel-plan",
+            "x": 602,
+            "y": 312,
+            "w": 128,
+            "h": 108,
+            "opacity": "0.92",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 331
+          },
+          {
+            "cls": "home-float-panel home-panel-bread is-focus",
+            "x": 606,
+            "y": 438,
+            "w": 118,
+            "h": 169,
+            "opacity": "0.94",
+            "z": "5",
+            "imgComplete": true,
+            "imgW": 281
+          },
+          {
+            "cls": "home-float-panel home-panel-scan",
+            "x": 178,
+            "y": 531,
+            "w": 120,
+            "h": 138,
+            "opacity": "0.9",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 303
+          },
+          {
+            "cls": "home-float-panel home-panel-complete",
+            "x": 558,
+            "y": 611,
+            "w": 104,
+            "h": 120,
+            "opacity": "0.9",
+            "z": "1",
+            "imgComplete": true,
+            "imgW": 295
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": 650,
+      "state": {
+        "cls": "screen home-page transition-handoff home-arrival home-repair-active",
+        "veilZ": "2",
+        "veilOpacity": "0.0893093",
+        "morphZ": "140",
+        "morphOpacity": "1",
+        "mascotOpacity": "1",
+        "panelCount": 5,
+        "panels": [
+          {
+            "cls": "home-float-panel home-panel-online",
+            "x": 170,
+            "y": 313,
+            "w": 137,
+            "h": 107,
+            "opacity": "0.96049",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 339
+          },
+          {
+            "cls": "home-float-panel home-panel-plan",
+            "x": 600,
+            "y": 317,
+            "w": 125,
+            "h": 105,
+            "opacity": "0.92",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 331
+          },
+          {
+            "cls": "home-float-panel home-panel-bread is-focus",
+            "x": 599,
+            "y": 428,
+            "w": 124,
+            "h": 178,
+            "opacity": "0.94",
+            "z": "5",
+            "imgComplete": true,
+            "imgW": 281
+          },
+          {
+            "cls": "home-float-panel home-panel-scan",
+            "x": 180,
+            "y": 531,
+            "w": 120,
+            "h": 138,
+            "opacity": "0.95",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 303
+          },
+          {
+            "cls": "home-float-panel home-panel-complete",
+            "x": 555,
+            "y": 614,
+            "w": 106,
+            "h": 121,
+            "opacity": "0.937656",
+            "z": "1",
+            "imgComplete": true,
+            "imgW": 295
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": 950,
+      "state": {
+        "cls": "screen home-page transition-home  ",
+        "veilZ": "1",
+        "veilOpacity": "0.12",
+        "morphZ": null,
+        "morphOpacity": null,
+        "mascotOpacity": "1",
+        "panelCount": 5,
+        "panels": [
+          {
+            "cls": "home-float-panel home-panel-online",
+            "x": 172,
+            "y": 308,
+            "w": 138,
+            "h": 108,
+            "opacity": "1",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 339
+          },
+          {
+            "cls": "home-float-panel home-panel-plan",
+            "x": 596,
+            "y": 319,
+            "w": 126,
+            "h": 106,
+            "opacity": "0.92",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 331
+          },
+          {
+            "cls": "home-float-panel home-panel-bread is-focus",
+            "x": 607,
+            "y": 435,
+            "w": 120,
+            "h": 172,
+            "opacity": "0.94",
+            "z": "5",
+            "imgComplete": true,
+            "imgW": 281
+          },
+          {
+            "cls": "home-float-panel home-panel-scan",
+            "x": 178,
+            "y": 531,
+            "w": 120,
+            "h": 138,
+            "opacity": "1",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 303
+          },
+          {
+            "cls": "home-float-panel home-panel-complete",
+            "x": 551,
+            "y": 617,
+            "w": 108,
+            "h": 124,
+            "opacity": "0.979743",
+            "z": "1",
+            "imgComplete": true,
+            "imgW": 295
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": 1900,
+      "state": {
+        "cls": "screen home-page transition-home  ",
+        "veilZ": "1",
+        "veilOpacity": "0.12",
+        "morphZ": null,
+        "morphOpacity": null,
+        "mascotOpacity": "1",
+        "panelCount": 5,
+        "panels": [
+          {
+            "cls": "home-float-panel home-panel-online",
+            "x": 169,
+            "y": 314,
+            "w": 138,
+            "h": 108,
+            "opacity": "0.948018",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 339
+          },
+          {
+            "cls": "home-float-panel home-panel-plan",
+            "x": 600,
+            "y": 318,
+            "w": 124,
+            "h": 105,
+            "opacity": "0.92",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 331
+          },
+          {
+            "cls": "home-float-panel home-panel-bread is-focus",
+            "x": 606,
+            "y": 438,
+            "w": 118,
+            "h": 169,
+            "opacity": "0.94",
+            "z": "5",
+            "imgComplete": true,
+            "imgW": 281
+          },
+          {
+            "cls": "home-float-panel home-panel-scan",
+            "x": 179,
+            "y": 531,
+            "w": 120,
+            "h": 138,
+            "opacity": "0.95",
+            "z": "4",
+            "imgComplete": true,
+            "imgW": 303
+          },
+          {
+            "cls": "home-float-panel home-panel-complete",
+            "x": 555,
+            "y": 614,
+            "w": 106,
+            "h": 121,
+            "opacity": "0.936726",
+            "z": "1",
+            "imgComplete": true,
+            "imgW": 295
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    "Warning: React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element.%s fetchPriority fetchpriority \n    at img\n    at div\n    at HomeImagePanel (http://127.0.0.1:5176/src/pages.tsx?t=1781003412017:133:3)\n    at section\n    at div\n    at div\n    at div\n    at main\n    at Screen (http://127.0.0.1:5176/src/components/ui.tsx?t=1780997419090:10:3)\n    at HomePage (http://127.0.0.1:5176/src/pages.tsx?t=1781003412017:155:28)\n    at App (http://127.0.0.1:5176/src/App.tsx?t=1781003950670:288:34)"
+  ]
+}

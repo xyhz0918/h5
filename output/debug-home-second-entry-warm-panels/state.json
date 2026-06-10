@@ -1,0 +1,96 @@
+{
+  "state": {
+    "homeClass": "screen home-page transition-home  ",
+    "panelCount": 5,
+    "panelRects": [
+      {
+        "cls": "home-float-panel home-panel-online",
+        "x": 43,
+        "y": 150,
+        "w": 138,
+        "h": 108,
+        "opacity": "0.999365",
+        "display": "block",
+        "visibility": "visible"
+      },
+      {
+        "cls": "home-float-panel home-panel-plan",
+        "x": 467,
+        "y": 161,
+        "w": 126,
+        "h": 106,
+        "opacity": "0.92",
+        "display": "block",
+        "visibility": "visible"
+      },
+      {
+        "cls": "home-float-panel home-panel-bread is-focus",
+        "x": 478,
+        "y": 275,
+        "w": 120,
+        "h": 172,
+        "opacity": "0.94",
+        "display": "block",
+        "visibility": "visible"
+      },
+      {
+        "cls": "home-float-panel home-panel-scan",
+        "x": 46,
+        "y": 372,
+        "w": 120,
+        "h": 138,
+        "opacity": "1",
+        "display": "block",
+        "visibility": "visible"
+      },
+      {
+        "cls": "home-float-panel home-panel-complete",
+        "x": 422,
+        "y": 458,
+        "w": 108,
+        "h": 124,
+        "opacity": "0.978353",
+        "display": "block",
+        "visibility": "visible"
+      }
+    ],
+    "imageReady": [
+      {
+        "cls": "home-panel-original",
+        "complete": true,
+        "nw": 339,
+        "nh": 264,
+        "currentSrc": "http://127.0.0.1:5176/assets/images/home/home-panel-online.webp"
+      },
+      {
+        "cls": "home-panel-original",
+        "complete": true,
+        "nw": 331,
+        "nh": 278,
+        "currentSrc": "http://127.0.0.1:5176/assets/images/home/home-panel-plan.webp"
+      },
+      {
+        "cls": "home-panel-original",
+        "complete": true,
+        "nw": 281,
+        "nh": 402,
+        "currentSrc": "http://127.0.0.1:5176/assets/images/home/home-panel-bread.webp"
+      },
+      {
+        "cls": "home-panel-original",
+        "complete": true,
+        "nw": 303,
+        "nh": 348,
+        "currentSrc": "http://127.0.0.1:5176/assets/images/home/home-panel-scan.webp"
+      },
+      {
+        "cls": "home-panel-original",
+        "complete": true,
+        "nw": 295,
+        "nh": 339,
+        "currentSrc": "http://127.0.0.1:5176/assets/images/home/home-panel-complete.webp"
+      }
+    ]
+  },
+  "errors": []
+}

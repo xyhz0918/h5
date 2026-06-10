@@ -24,7 +24,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { CompletionModal, FlowNav, GlowButton, InfoRows, OperationFlow, PageTitle, Panel, Progress, Screen, TopBar } from "./components/ui";
 import type { PackageModelViewerHandle } from "./components/PackageModelViewer";
 import { assets } from "./lib/assets";
-import { bugOptions } from "./lib/content";
+import { bugOptions, reportSlogan } from "./lib/content";
 import type { FactoryAreaId, PageProps } from "./types";
 
 const descriptionPrompts = [
@@ -35,6 +35,25 @@ const descriptionPrompts = [
   "周末想慢慢吃早餐，希望口感更柔软、配料更清楚。",
   "路上包和手机都带了，早餐却还没找到合适入口。"
 ];
+const homeTitleLines = ["检测到一个", "早餐小 BUG"] as const;
+const homeTitleText = "检测到一个早餐小 BUG";
+const reportPageText = {
+  label: "BREAKFAST BUG REPORT",
+  title: "我的早餐透明报告",
+  subtitle: "豪士藜麦吐司透明验证已完成。",
+  ticketBug: "早餐小 BUG",
+  ticketIdentity: "当前身份",
+  ticketRecommendation: "推荐方案",
+  verdictLabel: "透明结论",
+  verdictTitle: "好吃看得见",
+  verdictCopy: "原料、工艺与包装追踪码已完成验证，过程可见。",
+  slogan: reportSlogan,
+  saveButton: "保存报告",
+  shareButton: "分享报告",
+  buyButton: "购买同款",
+  generatedNotice: "报告已生成。",
+  restartButton: "再来一次"
+} as const;
 
 const loadPackageModelViewer = () => import("./components/PackageModelViewer");
 
@@ -101,6 +120,16 @@ function preloadPackageModelAssets(modelSrc: string, { force = false }: { force?
   });
 }
 
+function usePackageModelWarmup(delayMs = 900) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      preloadPackageModelAssets(assets.packageModel);
+    }, delayMs);
+
+    return () => window.clearTimeout(timer);
+  }, [delayMs]);
+}
+
 function compactNotice(message: string, maxLength = 34) {
   const trimmed = message.trim();
   if (!trimmed) return "";
@@ -148,12 +177,14 @@ function HomeImagePanel({
   return (
     <div className={`home-float-panel ${className}`} aria-hidden="true">
       <img src={src} alt="" className="home-panel-original" decoding="async" loading="eager" />
-      {showRedLayer && <img src={src} alt="" className="home-panel-red" decoding="async" loading="eager" />}
+      {showRedLayer && (
+        <img src={src} alt="" className="home-panel-red" decoding="async" loading="eager" />
+      )}
     </div>
   );
 }
 
-export function HomePage({ go, transitionPhase, homeArrivalActive, homeRepairActive }: PageProps) {
+export function HomePage({ go, transitionPhase, homeArrivalActive, homeRepairActive, audioToggle }: PageProps) {
   return (
     <Screen
       background={assets.bgPortal}
@@ -161,11 +192,11 @@ export function HomePage({ go, transitionPhase, homeArrivalActive, homeRepairAct
       entranceMotion={false}
       motionLayer
     >
-      <TopBar />
+      <TopBar audioToggle={audioToggle} />
 
       <section className="hero-stage home-hero-stage">
         <img src={assets.homePlatform} alt="" className="home-platform" aria-hidden="true" decoding="async" loading="eager" />
-        <img src={assets.homeMascot} alt="豪小士透明工厂后台助手" className="home-mascot" decoding="async" loading="eager" />
+        <img src={assets.homeMascot} alt="豪小士透明工厂助手" className="home-mascot" decoding="async" loading="eager" />
         <HomeImagePanel src={assets.homePanelOnline} className="home-panel-online" showRedLayer={homeRepairActive} />
         <HomeImagePanel src={assets.homePanelPlan} className="home-panel-plan" showRedLayer={homeRepairActive} />
         <HomeImagePanel src={assets.homePanelBread} className="home-panel-bread is-focus" showRedLayer={homeRepairActive} />
@@ -177,13 +208,13 @@ export function HomePage({ go, transitionPhase, homeArrivalActive, homeRepairAct
         label="BREAKFAST BUG CHECK"
         title={
           <>
-            检测到一个
+            {homeTitleLines[0]}
             <br />
-            早餐小 BUG
+            {homeTitleLines[1]}
           </>
         }
         titleClassName="glitch-title is-glitching"
-        titleDataText="检测到一个早餐小 BUG"
+        titleDataText={homeTitleText}
         subtitle="豪士藜麦吐司，好吃看得见。选一个早餐 BUG，进工厂完成透明验证。"
       />
 
@@ -216,7 +247,8 @@ export function SelectPage({
   description,
   setDescription,
   selectBug,
-  submitBug
+  submitBug,
+  audioToggle
 }: PageProps) {
   const bugGridRef = useRef<HTMLElement>(null);
   const bugTrackRef = useRef<HTMLDivElement>(null);
@@ -237,6 +269,8 @@ export function SelectPage({
   const descriptionPromptRefreshRef = useRef(Number.NEGATIVE_INFINITY);
   const [descriptionPromptIndex, setDescriptionPromptIndex] = useState(() => randomDescriptionPromptIndex());
   const mascotStateClass = "";
+
+  usePackageModelWarmup();
 
   const clampBugIndex = (index: number) => Math.min(Math.max(index, 0), bugOptions.length - 1);
 
@@ -376,7 +410,7 @@ export function SelectPage({
 
   return (
     <Screen background={assets.bgCards} className={`select-page ${mascotStateClass}`}>
-      <TopBar onBack={() => go("home")} progress="02 / 09" />
+      <TopBar audioToggle={audioToggle} onBack={() => go("home")} progress="02 / 09" />
       <img
         src={assets.mascotField}
         alt="豪小士"
@@ -459,7 +493,9 @@ export function SelectPage({
   );
 }
 
-export function WorkOrderPage({ go, order, solution, unlockStage }: PageProps) {
+export function WorkOrderPage({ go, order, solution, unlockStage, playAudioCue, audioToggle }: PageProps) {
+  usePackageModelWarmup(1200);
+
   const [readProgress, setReadProgress] = useState(0);
   const readTweenRef = useRef<ReturnType<typeof gsap.to> | null>(null);
   const readProgressValueRef = useRef({ value: 0 });
@@ -475,7 +511,7 @@ export function WorkOrderPage({ go, order, solution, unlockStage }: PageProps) {
     readTweenRef.current?.kill();
     readTweenRef.current = gsap.to(readProgressValueRef.current, {
       value: 100,
-      duration: 2.4,
+      duration: 4.2,
       ease: "none",
       onUpdate: () => {
         if (readCompletedRef.current) return;
@@ -506,25 +542,26 @@ export function WorkOrderPage({ go, order, solution, unlockStage }: PageProps) {
     readTweenRef.current = null;
     readProgressValueRef.current.value = 100;
     setReadProgress(100);
+    playAudioCue("data_confirm");
   };
 
   return (
     <Screen background={assets.bgFactory} className={`order-page ${orderReady ? "is-ready" : ""}`}>
-      <TopBar onBack={() => go("select")} progress="03 / 09" />
-      <PageTitle label="FACTORY BACKEND ACCESS" title="豪士透明工厂后台已接入" subtitle="早餐问题数据正在传输，接下来用五个任务证明好吃看得见。" />
+      <TopBar audioToggle={audioToggle} onBack={() => go("select")} progress="03 / 09" />
+      <PageTitle label="FACTORY INTAKE ACCESS" title="豪士透明工厂已接入" subtitle="早餐问题档案正在入厂，接下来用五个工艺舱证明好吃看得见。" />
 
       <div className="order-factory-layer" aria-hidden="true">
         <img src={assets.factoryCutout} alt="" />
       </div>
 
-      <section className="panel order-console" onClick={completeOrderRead}>
+      <section className="panel order-console">
         <div className="conveyor">
           <img src={assets.mascotOperator} alt="豪小士控制台" />
           <div className="floating-ticket">
             <ClipboardList size={20} />
             <span>透明工厂接入中</span>
           </div>
-          <p>工单已入库，透明工厂正在同步早餐 BUG 数据。</p>
+          <p>工单已入库，透明工厂正在校准早餐工艺线。</p>
         </div>
 
         <div className="work-order">
@@ -539,7 +576,7 @@ export function WorkOrderPage({ go, order, solution, unlockStage }: PageProps) {
               ["档案编号", order.id],
               ["早餐困扰", order.bugType],
               ["场景描述", order.description],
-              ["匹配工艺", `${solution.orderLabel} · 进入五大透明控制舱`],
+              ["匹配工艺", `${solution.orderLabel} · 进入五大工艺控制舱`],
               ["优先级", order.priority]
             ]}
           />
@@ -555,6 +592,7 @@ export function WorkOrderPage({ go, order, solution, unlockStage }: PageProps) {
               completeOrderRead();
               return;
             }
+            playAudioCue("short_whoosh");
             unlockStage(2);
             go("ingredientScan");
           }}
@@ -574,7 +612,11 @@ export function SoftRepairPage({
   setRepairCharge,
   unlockStage,
   setNotice,
-  selectFactoryArea
+  selectFactoryArea,
+  playAudioCue,
+  startAudioLoop,
+  stopAudioLoop,
+  audioToggle
 }: PageProps) {
   const documentVisible = useDocumentVisible();
   const holdTimer = useRef<number | null>(null);
@@ -602,7 +644,7 @@ export function SoftRepairPage({
   const repairStatuses: Array<[string, string, string, LucideIcon]> = [
     ["压面距离", `${pressDistance}m / 36m`, softComplete ? "压面完成" : pressFailed ? "中途放开，已归零" : "按住推进", Factory],
     ["面团状态", softComplete ? "松软状态已激活" : pressFailed ? "压面失败" : "连续压延中", pressFailed ? "请重新按住启动" : "36 米压面机运行中", Wheat],
-    ["组织结构", softComplete ? "松软结构完成" : pressFailed ? "结构未成型" : "逐步展开", "压延数据同步", SlidersHorizontal],
+    ["面团组织", softComplete ? "松软结构完成" : pressFailed ? "结构未成型" : "逐步展开", "压延状态生成中", SlidersHorizontal],
     ["松软值", softComplete ? "已满格" : "动态上升", `${repairCharge}%`, HeartPulse]
   ];
   const clearHold = () => {
@@ -614,6 +656,8 @@ export function SoftRepairPage({
   const completeSoftRepair = () => {
     holdActiveRef.current = false;
     clearHold();
+    stopAudioLoop("machine_loop_low");
+    playAudioCue("machine_complete");
     setIsAwakening(false);
     setPressFailed(false);
     setShowSoftCompleteModal(true);
@@ -637,6 +681,8 @@ export function SoftRepairPage({
     }
     if (holdTimer.current !== null) return;
     holdActiveRef.current = true;
+    playAudioCue("machine_start");
+    startAudioLoop("machine_loop_low");
     setPressFailed(false);
     setIsAwakening(true);
     setNotice("按住启动压面机，面团正在进入松软唤醒舱。");
@@ -649,8 +695,10 @@ export function SoftRepairPage({
     const wasHolding = holdActiveRef.current;
     holdActiveRef.current = false;
     clearHold();
+    stopAudioLoop("machine_loop_low");
     setIsAwakening(false);
     if (!wasHolding) return;
+    playAudioCue("machine_stop");
     if (repairChargeRef.current < 100) {
       repairChargeRef.current = 0;
       setRepairCharge(0);
@@ -669,11 +717,17 @@ export function SoftRepairPage({
     }
   }, [documentVisible]);
 
-  useEffect(() => clearHold, []);
+  useEffect(
+    () => () => {
+      clearHold();
+      stopAudioLoop("machine_loop_low");
+    },
+    [stopAudioLoop]
+  );
 
   return (
     <Screen background={assets.bgToastLab} className={`repair-page ${isAwakening ? "is-awakening" : ""} ${pressFailed ? "press-failed" : ""} ${softComplete ? "soft-complete" : ""}`}>
-      <TopBar onBack={() => go("ingredientScan")} progress="05 / 09" />
+      <TopBar audioToggle={audioToggle} onBack={() => go("ingredientScan")} progress="05 / 09" />
       <PageTitle label="SOFT CAPSULE 02" title="松软唤醒舱" subtitle="36 米压面工艺启动，松软结构正在生成。" />
       <p className="soft-main-copy">面团进入 36 米长压面机，经过连续压延，松软口感逐步成型。</p>
 
@@ -705,10 +759,10 @@ export function SoftRepairPage({
             </div>
             <div className="tunnel-progress-line" aria-hidden="true">
               <i />
-            </div>
-            <div className="press-progress-readout" aria-live="polite">
-              <b>{repairCharge}%</b>
-              <span>{pressDistance}m / 36m</span>
+              <div className="press-progress-readout" aria-live="polite">
+                <b>0%</b>
+                <span>100%</span>
+              </div>
             </div>
             <div className="proofing-steam">
               <span>PRESS</span>
@@ -798,14 +852,16 @@ export function IngredientScanPage({
   setIngredientIds,
   unlockStage,
   setNotice,
-  selectFactoryArea
+  selectFactoryArea,
+  playAudioCue,
+  audioToggle
 }: PageProps) {
   const ingredients = [
     {
       id: "red-quinoa",
       name: "玻利维亚进口红藜麦",
       purity: "98.7%",
-      status: "营养赋能中......",
+      status: "营养配比中......",
       desc: "红藜麦数据接入，谷物能量正在点亮。",
       feedback: "红藜麦数据读取成功。",
       icon: Leaf,
@@ -815,8 +871,8 @@ export function IngredientScanPage({
     {
       id: "gluten",
       name: "定制专用一级谷朊粉",
-      purity: "96.2%",
-      status: "筋性支撑中......",
+      purity: "97.1%",
+      status: "松软构建中......",
       desc: "天然小麦蛋白读取，面团组织获得稳定支撑。",
       feedback: "谷朊粉数据读取成功。",
       icon: ShieldCheck,
@@ -826,8 +882,8 @@ export function IngredientScanPage({
     {
       id: "canada-wheat",
       name: "加拿大进口小麦",
-      purity: "97.4%",
-      status: "面团基础激活中......",
+      purity: "96.3%",
+      status: "面团成型中......",
       desc: "高蛋白小麦数据接入，松软口感开始建模。",
       feedback: "小麦数据读取成功。",
       icon: Wheat,
@@ -836,9 +892,9 @@ export function IngredientScanPage({
     },
     {
       id: "fresh-yeast",
-      name: "鲜酵母",
-      purity: "99.1%",
-      status: "发酵动力唤醒中......",
+      name: "法国乐斯福鲜酵母",
+      purity: "95.8%",
+      status: "醒发准备中......",
       desc: "法国乐斯福菌种接入，发酵力正在上线。",
       feedback: "鲜酵母数据读取成功。",
       icon: Sparkles,
@@ -855,6 +911,13 @@ export function IngredientScanPage({
   const [showSourceCompleteModal, setShowSourceCompleteModal] = useState(false);
   const [armedIngredientId, setArmedIngredientId] = useState<string | null>(null);
   const [coreArmed, setCoreArmed] = useState(false);
+  const sourceActiveHint = sourceComplete
+    ? "原料已接入透明搅拌核心。"
+    : coreArmed
+      ? "核心已锁定，松手接入透明搅拌核心。"
+      : armedIngredientId
+        ? "拖向透明搅拌核心，靠近后松手接入。"
+        : sourceInlineNotice || "拖动或点击原料卡，接入透明搅拌核心。";
   const [ingestEffect, setIngestEffect] = useState<{ id: string; tick: number } | null>(null);
   const sourceCoreDropzoneRef = useRef<HTMLDivElement>(null);
   const sourceDragStateRef = useRef<{
@@ -863,10 +926,11 @@ export function IngredientScanPage({
     element: HTMLElement;
     startX: number;
     startY: number;
-    dropRect: DOMRect;
-    hasMoved: boolean;
-    isInsideCore: boolean;
-  } | null>(null);
+  dropRect: DOMRect;
+  hasMoved: boolean;
+  isInsideCore: boolean;
+  pointerType: string;
+} | null>(null);
   const sourceDragFrameRef = useRef(0);
   const sourceDragTransformRef = useRef<{ element: HTMLElement; x: number; y: number } | null>(null);
   const suppressIngredientClickRef = useRef(false);
@@ -904,20 +968,24 @@ export function IngredientScanPage({
     if (!ingredient) return;
 
     if (ingredientIdsRef.current.includes(id)) {
-      setNotice("这张原料数据卡已经录入透明搅拌核心。");
+      playAudioCue("soft_warning");
+      setNotice("这张原料卡已经接入透明搅拌核心。");
       return;
     }
 
     const nextIngredientIds = [...ingredientIdsRef.current, id];
     ingredientIdsRef.current = nextIngredientIds;
+    playAudioCue("data_blip");
     setIngestEffect({ id, tick: Date.now() });
     setIngredientIds((current) => (current.includes(id) ? current : [...current, id]));
     if (nextIngredientIds.length >= correctTotal) {
+      playAudioCue("success_rise");
       setShowSourceCompleteModal(true);
       setNotice("原料数据读取完成。好吃第一步，已看见。");
       return;
     }
-    setNotice(`${ingredient.feedback} SOURCE DATA ACCEPTED / 原料数据已录入。`);
+    playAudioCue("confirm_tick");
+    setNotice(`${ingredient.feedback} INGREDIENT CHECK / 原料已接入。`);
   };
   const writeSourceDragTransform = (element: HTMLElement, x: number, y: number) => {
     sourceDragTransformRef.current = { element, x, y };
@@ -960,12 +1028,15 @@ export function IngredientScanPage({
       writeSourceDragTransform(dragState.element, deltaX, deltaY);
     }
 
-    const isInsideCore = isPointInsideRect(clientX, clientY, dragState.dropRect);
-    if (isInsideCore !== dragState.isInsideCore) {
-      dragState.isInsideCore = isInsideCore;
-      setCoreArmed(isInsideCore);
+  const isInsideCore = isPointInsideRect(clientX, clientY, dragState.dropRect);
+  if (isInsideCore !== dragState.isInsideCore) {
+    dragState.isInsideCore = isInsideCore;
+    setCoreArmed(isInsideCore);
+    if (isInsideCore && dragState.pointerType !== "mouse" && "vibrate" in window.navigator) {
+      window.navigator.vibrate(18);
     }
-  };
+  }
+};
 
   const detachSourcePointerListeners = () => {
     const listeners = sourcePointerListenersRef.current;
@@ -1024,6 +1095,7 @@ export function IngredientScanPage({
     const dropRect = sourceCoreDropzoneRef.current?.getBoundingClientRect();
     if (!dropRect) return;
 
+    playAudioCue("soft_pick");
     const element = event.currentTarget;
     element.focus({ preventScroll: true });
 
@@ -1033,10 +1105,11 @@ export function IngredientScanPage({
       element,
       startX: event.clientX,
       startY: event.clientY,
-      dropRect,
-      hasMoved: false,
-      isInsideCore: false
-    };
+    dropRect,
+    hasMoved: false,
+    isInsideCore: false,
+    pointerType: event.pointerType
+  };
 
     writeSourceDragTransform(element, 0, 0);
     setArmedIngredientId(item.id);
@@ -1132,7 +1205,7 @@ export function IngredientScanPage({
 
   return (
     <Screen background={assets.bgTerminal} className="scan-page ingredient-capsule-page">
-      <TopBar onBack={() => go("workOrder")} progress="04 / 09" />
+      <TopBar audioToggle={audioToggle} onBack={() => go("workOrder")} progress="04 / 09" />
       <PageTitle label="HORSH BREAKFAST OS v2.2.4" title="原料数据舱" subtitle="原料数据载入中，好吃第一步正在点亮。" />
 
       <Panel className="scanner-panel ingredient-capsule-panel">
@@ -1141,7 +1214,7 @@ export function IngredientScanPage({
         >
           <div
             className="source-core"
-            aria-label="透明搅拌核心，拖入原料数据卡读取"
+            aria-label="透明搅拌核心，拖入原料卡接入"
           >
             <div ref={sourceCoreDropzoneRef} className="source-core-dropzone" aria-hidden="true" />
             {ingestEffect && (
@@ -1180,9 +1253,9 @@ export function IngredientScanPage({
                 </>
               ) : (
                 <>
-                  <b>SOURCE DATA ACCEPTED</b>
-                  <span>原料数据已录入：{acceptedIngredientIds.length}/{correctTotal}</span>
-                  <small>{sourceInlineNotice || "拖入或点击原料卡，录入透明搅拌核心。"}</small>
+                  <b>INGREDIENT CHECK</b>
+                  <span>真材实料接入：{acceptedIngredientIds.length}/{correctTotal}</span>
+          <small>{sourceActiveHint}</small>
                 </>
               )}
             </div>
@@ -1209,7 +1282,7 @@ export function IngredientScanPage({
             setShowSourceCompleteModal(false);
             ingredientIdsRef.current = [];
             setIngredientIds([]);
-            setNotice(`重新读取原料数据，请拖入 ${correctTotal} 张原料数据卡。`);
+            setNotice(`重新接入原料，请拖入 ${correctTotal} 张原料卡。`);
           }}
         />
       )}
@@ -1218,7 +1291,7 @@ export function IngredientScanPage({
         <GlowButton
           onClick={() => {
             if (!sourceComplete) {
-              setNotice(`请拖入 ${correctTotal} 张原料数据卡，当前已录入 ${acceptedIngredientIds.length}/${correctTotal}。`);
+              setNotice(`请拖入 ${correctTotal} 张原料卡，当前已接入 ${acceptedIngredientIds.length}/${correctTotal}。`);
               return;
             }
             unlockStage(3);
@@ -1226,7 +1299,7 @@ export function IngredientScanPage({
             go("softRepair");
           }}
         >
-          {sourceComplete ? "进入松软唤醒舱" : `拖入原料数据 ${acceptedIngredientIds.length}/${correctTotal}`}
+          {sourceComplete ? "进入松软唤醒舱" : `拖入原料 ${acceptedIngredientIds.length}/${correctTotal}`}
         </GlowButton>
         <OperationFlow active={0} />
       </div>
@@ -1240,6 +1313,8 @@ export function ProofingLivePage(props: PageProps) {
   const proofingSliderBoardRef = useRef<HTMLDivElement>(null);
   const proofingDraftRef = useRef({ temperature: 30, humidity: 72 });
   const proofingCommitFrameRef = useRef(0);
+  const proofingReadyRef = useRef(false);
+  const lastSliderCueRef = useRef(0);
   const [temperatureValue, setTemperatureValue] = useState(30);
   const [humidityValue, setHumidityValue] = useState(72);
   const [showProofingCompleteModal, setShowProofingCompleteModal] = useState(false);
@@ -1262,11 +1337,11 @@ export function ProofingLivePage(props: PageProps) {
   const proofingInlineNotice = compactNotice(props.notice, 38);
   const proofingHint = proofingInlineNotice || (
     !temperatureIdeal && !humidityIdeal
-      ? "按住两个指针，拖进中间稳定区"
+      ? "拖动温湿度滑杆，校准至中间稳定区"
       : !temperatureIdeal
-        ? "温度指针还没进稳定区"
+        ? "温度滑杆还没校准至稳定区"
         : !humidityIdeal
-          ? "湿度指针还没进稳定区"
+          ? "湿度滑杆还没校准至稳定区"
           : "双参数已稳定，可以锁定"
   );
   const markerFor = (value: number) => {
@@ -1295,6 +1370,11 @@ export function ProofingLivePage(props: PageProps) {
       [kind]: value
     };
     writeProofingCssValue(kind, value);
+    const now = window.performance.now();
+    if (now - lastSliderCueRef.current > 180) {
+      lastSliderCueRef.current = now;
+      props.playAudioCue("soft_slider_tick");
+    }
 
     if (!proofingCommitFrameRef.current) {
       proofingCommitFrameRef.current = window.requestAnimationFrame(commitProofingDraft);
@@ -1335,12 +1415,25 @@ export function ProofingLivePage(props: PageProps) {
     },
     []
   );
+
+  useEffect(() => {
+    if (proofingReady && !proofingReadyRef.current) {
+      props.playAudioCue("stable_confirm");
+    }
+    if (!proofingReady && proofingReadyRef.current) {
+      props.playAudioCue("soft_warning");
+    }
+    proofingReadyRef.current = proofingReady;
+  }, [proofingReady, props]);
+
   const lockProofing = () => {
     if (!proofingReady) {
-      props.setNotice(`醒发参数还没稳定：温度${temperatureStatus}，湿度${humidityStatus}。把两个指针拖到中间适合区。`);
+      props.playAudioCue("soft_warning");
+      props.setNotice(`醒发参数还没稳定：温度${temperatureStatus}，湿度${humidityStatus}。拖动温湿度滑杆，校准至中间稳定区。`);
       return;
     }
 
+    props.playAudioCue("stable_confirm");
     setShowProofingCompleteModal(true);
     props.setNotice("恒温醒发完成，松软气孔已稳定。");
   };
@@ -1350,8 +1443,8 @@ export function ProofingLivePage(props: PageProps) {
       background={assets.bgToastLab}
       className={`production-live-page proofing-live-stage ${proofingReady ? "proofing-ready" : ""}`}
     >
-      <TopBar onBack={() => props.go("softRepair")} progress="06 / 09" />
-      <PageTitle label="PROOFING CAPSULE 03" title="恒温醒发舱" subtitle="拖动温湿度滑块，让松软气孔稳定形成。" />
+      <TopBar audioToggle={props.audioToggle} onBack={() => props.go("softRepair")} progress="06 / 09" />
+      <PageTitle label="PROOFING CAPSULE 03" title="恒温醒发舱" subtitle="拖动温湿度滑杆，校准至中间稳定区。" />
 
       <Panel className="scanner-panel production-live-panel proofing-control-panel">
         <header>
@@ -1479,14 +1572,14 @@ export function ProofingLivePage(props: PageProps) {
             setShowProofingCompleteModal(false);
             setTemperatureValue(30);
             setHumidityValue(72);
-            props.setNotice("醒发滑块已重置，请重新拖到中间适合区。");
+            props.setNotice("拖动温湿度滑杆，校准至中间稳定区。");
           }}
         />
       )}
 
       <div className="bottom-actions">
         <GlowButton icon={<ShieldCheck size={18} />} onClick={lockProofing}>
-          {proofingReady ? "锁定醒发参数" : "先拖进稳定区"}
+          {proofingReady ? "锁定醒发参数" : "校准至稳定区"}
         </GlowButton>
         <OperationFlow active={2} />
       </div>
@@ -1496,6 +1589,8 @@ export function ProofingLivePage(props: PageProps) {
 
 export function BakingLivePage(props: PageProps) {
   const documentVisible = useDocumentVisible();
+  const goldenCueRef = useRef(false);
+  const warningCueRef = useRef(false);
   const [heatValue, setHeatValue] = useState(0);
   const [heatStopped, setHeatStopped] = useState(false);
   const [showHeatCompleteModal, setShowHeatCompleteModal] = useState(false);
@@ -1542,16 +1637,16 @@ export function BakingLivePage(props: PageProps) {
           : "表面开始过烤";
   const heatFailNotice =
     heatTemperature < 165
-      ? "锁定太早，滑块还没进入黄金区。"
+      ? "锁定太早，火候还没进入黄金区。"
       : heatTemperature >= autoFailTemperature
         ? "火候已经进入过烤区，锁定失败。"
-        : "锁定偏晚，滑块已经越过黄金区。";
+        : "锁定偏晚，火候已经越过黄金区。";
   const heatFailBody =
     heatTemperature < 165
-      ? `当前停在 ${heatTemperature}°C，吐司还没进入黄金焙香区。等滑块进入 165°C~175°C 再按下锁定。`
+      ? `当前停在 ${heatTemperature}°C，吐司还没进入黄金焙香区。等火候进入 165°C~175°C 再按下锁定。`
       : heatTemperature >= autoFailTemperature
         ? `当前已经到 ${heatTemperature}°C，火候进入过烤区。重新开始后，在 165°C~175°C 的黄金区按下锁定。`
-        : `当前停在 ${heatTemperature}°C，已经越过 165°C~175°C 黄金区。重新开始后，滑块到黄色目标区时立刻按下锁定。`;
+        : `当前停在 ${heatTemperature}°C，已经越过 165°C~175°C 黄金区。重新开始后，火候到黄色目标区时立刻按下锁定。`;
   const heatActionLabel = heatStopped ? (isGolden ? "进入透明验证舱" : "重新锁定火候") : "按下锁定火候";
   const heatInlineNotice = compactNotice(props.notice);
   const heatStyle = {
@@ -1581,6 +1676,7 @@ export function BakingLivePage(props: PageProps) {
   useEffect(() => {
     if (heatStopped || showHeatCompleteModal || showHeatFailModal || heatTemperature < autoFailTemperature) return;
 
+    props.playAudioCue("short_warning_glitch");
     setHeatStopped(true);
     setShowHeatFailModal(true);
     props.setNotice(heatFailNotice);
@@ -1594,12 +1690,31 @@ export function BakingLivePage(props: PageProps) {
     showHeatFailModal
   ]);
 
+  useEffect(() => {
+    if (isGolden && !goldenCueRef.current) {
+      goldenCueRef.current = true;
+      props.playAudioCue("target_near_beep");
+    }
+    if (heatTemperature >= 178 && !warningCueRef.current) {
+      warningCueRef.current = true;
+      props.playAudioCue("short_warning_glitch");
+    }
+    if (heatTemperature < 160) {
+      goldenCueRef.current = false;
+    }
+    if (heatTemperature < 176) {
+      warningCueRef.current = false;
+    }
+  }, [heatTemperature, isGolden, props]);
+
   const resetHeat = () => {
+    goldenCueRef.current = false;
+    warningCueRef.current = false;
     setShowHeatCompleteModal(false);
     setShowHeatFailModal(false);
     setHeatValue(0);
     setHeatStopped(false);
-    props.setNotice("火候滑块已从左侧重新开始，按下停在黄金区。");
+    props.setNotice("火候扫描已从左侧重新开始，进入黄金区后按下锁定。");
   };
 
   const stopHeat = () => {
@@ -1607,10 +1722,12 @@ export function BakingLivePage(props: PageProps) {
 
     setHeatStopped(true);
     if (isGolden) {
+      props.playAudioCue("bake_success");
       setShowHeatCompleteModal(true);
       props.setNotice("火候停在黄金区，香气上线。");
       return;
     }
+    props.playAudioCue("short_warning_glitch");
     setShowHeatFailModal(true);
     props.setNotice(heatFailNotice);
   };
@@ -1622,13 +1739,13 @@ export function BakingLivePage(props: PageProps) {
         heatStopped ? "heat-stopped" : "heat-auto-running"
       }`}
     >
-      <TopBar onBack={() => props.go("proofingLive")} progress="07 / 09" />
-      <PageTitle label="AROMA CAPSULE 04" title="黄金焙香舱" subtitle="观察滑块进入 165°C~175°C 黄金区，再按下锁定火候。" />
+      <TopBar audioToggle={props.audioToggle} onBack={() => props.go("proofingLive")} progress="07 / 09" />
+      <PageTitle label="AROMA CAPSULE 04" title="黄金焙香舱" subtitle="观察火候进入 165°C~175°C 黄金区，再按下锁定。" />
 
       <Panel className="scanner-panel production-live-panel heat-control-panel">
         <header>
           <b>面包烤色随温度实时变化</b>
-          <span>{heatStopped ? `${heatStatus} · ${heatFeedback}` : `进入黄金区时按下锁定 · ${heatTemperature}°C`}</span>
+          <span>{heatStopped ? `${heatStatus} · ${heatFeedback}` : `火候扫描正在推进 · ${heatTemperature}°C`}</span>
         </header>
         <div className="factory-window area-baking revealed baking-oven-window" style={heatStyle}>
           <div className="oven-glass" aria-label={`当前温度 ${heatTemperature} 摄氏度，${bakeStageText}`}>
@@ -1658,7 +1775,7 @@ export function BakingLivePage(props: PageProps) {
           <div className="heat-console-title">
             <ShieldCheck size={17} />
             <b>{isGolden ? "黄金火候可锁定" : heatStatus}</b>
-            <span>{heatStopped ? `${heatTemperature}°C · ${heatFeedback}` : "滑块从左向右扫描中"}</span>
+            <span>{heatStopped ? `${heatTemperature}°C · ${heatFeedback}` : "火候扫描正在推进"}</span>
           </div>
           <div className="heat-temp-readout">
             <span>当前温度</span>
@@ -1741,6 +1858,7 @@ export function BakingLivePage(props: PageProps) {
 
 export function PackingLivePage(props: PageProps) {
   const documentVisible = useDocumentVisible();
+  const { playAudioCue, startAudioLoop, stopAudioLoop } = props;
   const traceStageRef = useRef<HTMLDivElement>(null);
   const packageModelRef = useRef<PackageModelViewerHandle | null>(null);
   const traceStageRectRef = useRef<DOMRect | null>(null);
@@ -1756,6 +1874,8 @@ export function PackingLivePage(props: PageProps) {
   const rotationTweenRef = useRef<ReturnType<typeof gsap.to> | null>(null);
   const traceVisualFrameRef = useRef(0);
   const packageRotationRef = useRef(0);
+  const packageRotateCueRef = useRef(0);
+  const packageRotateReadyCueRef = useRef(false);
   const scannerPositionRef = useRef({ x: 72, y: 72 });
   const scannerOnCodeRef = useRef(false);
   const [packageRotation, setPackageRotation] = useState(0);
@@ -1777,30 +1897,30 @@ export function PackingLivePage(props: PageProps) {
     : modelFailed
       ? "备用追踪码已就绪"
       : rotateComplete
-      ? "拖动扫描器读取二维码"
-      : "左右拖动包装，找到背面二维码";
+      ? "拖动扫描器读取包装追踪码"
+      : "左右拖动包装，找到背面追踪码";
   const traceStageMeta = traceComplete
     ? "UNLOCKED 100%"
     : modelFailed
       ? "FALLBACK READY"
       : rotateComplete
-      ? `SCAN ${traceProgress}%`
+      ? `追踪码读取 ${traceProgress}%`
       : `ROTATE ${Math.round(packageRotation)}%`;
   const traceInlineNotice = compactNotice(props.notice, 42);
   const traceMainCopy = traceInlineNotice || (traceComplete
     ? "生产视频、检测证书与产品溯源已读取完成，可以生成早餐透明报告。"
     : modelFailed
-      ? "3D 包装加载失败时，可使用备用追踪码继续完成透明验证。"
+      ? "3D 包装未载入时，可使用备用追踪码继续完成透明验证。"
       : rotateComplete
-      ? "二维码面已就位，拖动圆形扫描器贴近模型自带二维码并保持读取。"
-      : "从正面左右拖动 3D 包装，先找到包装背面的模型自带二维码。");
+      ? "追踪码已就位，拖动扫描器贴近包装追踪码并保持读取。"
+      : "从正面左右拖动 3D 包装，先找到包装背面的追踪码。");
   const traceButtonLabel = traceComplete
     ? "生成我的早餐透明报告"
     : modelFailed
       ? "使用备用追踪码完成验证"
       : rotateComplete
-      ? "对准二维码完成扫描"
-      : "先找到背面二维码";
+      ? "对准追踪码完成扫描"
+      : "先找到背面追踪码";
   const traceUnlockProgressFor = (index: number) => {
     const start = index === 0 ? 0 : (traceUnlockThresholds[index - 1] ?? 0);
     const end = traceUnlockThresholds[index] ?? 100;
@@ -1857,6 +1977,12 @@ export function PackingLivePage(props: PageProps) {
   const setScannerOnCodeVisual = (value: boolean) => {
     if (scannerOnCodeRef.current === value) return;
     scannerOnCodeRef.current = value;
+    if (value) {
+      playAudioCue("scan_sweep");
+      startAudioLoop("digital_reading_loop");
+    } else {
+      stopAudioLoop("digital_reading_loop");
+    }
     setScannerOnCode(value);
   };
 
@@ -1868,6 +1994,16 @@ export function PackingLivePage(props: PageProps) {
     packageRotationRef.current = packageRotation;
     writePackageRotationVisual(packageRotation);
   }, [packageRotation]);
+
+  useEffect(() => {
+    if (rotateComplete && !packageRotateReadyCueRef.current) {
+      packageRotateReadyCueRef.current = true;
+      playAudioCue("package_rotate_ready");
+    }
+    if (!rotateComplete) {
+      packageRotateReadyCueRef.current = false;
+    }
+  }, [playAudioCue, rotateComplete]);
 
   useEffect(() => {
     scannerPositionRef.current = scannerPosition;
@@ -1901,7 +2037,15 @@ export function PackingLivePage(props: PageProps) {
     rotateDragRef.current = null;
     traceStageRectRef.current = null;
     setScannerOnCodeVisual(false);
+    stopAudioLoop("digital_reading_loop");
   }, [documentVisible]);
+
+  useEffect(
+    () => () => {
+      stopAudioLoop("digital_reading_loop");
+    },
+    [stopAudioLoop]
+  );
 
   useEffect(() => {
     if (!documentVisible || !scannerOnCode || !rotateComplete || traceComplete) return undefined;
@@ -1922,6 +2066,8 @@ export function PackingLivePage(props: PageProps) {
 
     traceCompleteAnnouncedRef.current = true;
     setScannerOnCodeVisual(false);
+    playAudioCue("code_confirm_beep");
+    playAudioCue("transparent_success");
     setShowTraceCompleteModal(true);
     props.setNotice("透明验证已完成。好吃不是黑箱，过程全程可见。");
   }, [props, traceProgress]);
@@ -1941,6 +2087,10 @@ export function PackingLivePage(props: PageProps) {
     drag.lastX = event.clientX;
     drag.lastTime = now;
     setPackageRotationVisual(nextProgress);
+    if (now - packageRotateCueRef.current > 140) {
+      packageRotateCueRef.current = now;
+      playAudioCue("package_rotate_tick");
+    }
   };
 
   const moveScanner = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1989,6 +2139,7 @@ export function PackingLivePage(props: PageProps) {
     setPackageRotationVisual(100, false);
     setPackageRotation(100);
     setScannerOnCodeVisual(false);
+    playAudioCue("transparent_success");
     setTraceProgress(100);
     props.setNotice("已使用备用追踪码完成透明验证。");
   };
@@ -2040,7 +2191,7 @@ export function PackingLivePage(props: PageProps) {
 
   return (
     <Screen background={assets.bgFactory} className="production-live-page packing-live-stage">
-      <TopBar onBack={() => props.go("bakingLive")} progress="08 / 09" />
+      <TopBar audioToggle={props.audioToggle} onBack={() => props.go("bakingLive")} progress="08 / 09" />
       <PageTitle label="VERIFY CAPSULE 05" title="透明验证舱" subtitle="扫描包装追踪码，验证好吃全过程。" />
 
       <Panel className="scanner-panel production-live-panel trace-code-panel">
@@ -2091,11 +2242,11 @@ export function PackingLivePage(props: PageProps) {
             <i>
               <em style={{ width: `${packageRotation}%` }} />
             </i>
-            <span>背面二维码</span>
+            <span>背面追踪码</span>
           </div>
           {rotateComplete && (
             <>
-              <div className="trace-qr-hotspot" aria-label="模型自带二维码扫描区域" />
+              <div className="trace-qr-hotspot" aria-label="包装追踪码扫描区域" />
               <div className="data-scanner">
                 <ScanLine size={22} />
                 <span>{scannerOnCode ? "READ" : "SCAN"}</span>
@@ -2108,8 +2259,8 @@ export function PackingLivePage(props: PageProps) {
 
       <Panel className={`trace-unlock-strip ${traceComplete ? "trace-complete" : ""} ${scannerOnCode ? "is-reading" : ""}`}>
         <header className="trace-unlock-head">
-          <h2>扫描解锁</h2>
-          <span>{traceComplete ? "3/3 已完成" : rotateComplete ? `${traceUnlockedCount}/3 证据读取` : "先翻到二维码面"}</span>
+          <h2>透明链路解锁</h2>
+          <span>{traceComplete ? "3/3 已完成" : rotateComplete ? `${traceUnlockedCount}/3 证据读取` : "先翻到追踪码面"}</span>
         </header>
         <div className="trace-unlock-grid">
           {traceOutputs.map(([title, desc, Icon], index) => {
@@ -2171,18 +2322,33 @@ export function PackingLivePage(props: PageProps) {
   );
 }
 
-export function ReportPage({ go, order, notice, solution, saveReport, shareReport, openPurchasePage, reportRef }: PageProps) {
+export function ReportPage({
+  go,
+  order,
+  notice,
+  solution,
+  saveReport,
+  shareReport,
+  openPurchasePage,
+  reportRef,
+  playAudioCue,
+  audioToggle
+}: PageProps) {
   const reportTickets = [
-    ["早餐小 BUG", order.bugType, order.description],
-    ["当前身份", solution.identity, solution.scenarioCopy],
-    ["推荐方案", solution.recommendation, "豪士藜麦吐司，好吃看得见。"]
+    [reportPageText.ticketBug, order.bugType, order.description],
+    [reportPageText.ticketIdentity, solution.identity, solution.scenarioCopy],
+    [reportPageText.ticketRecommendation, solution.recommendation, `匹配当前早餐 BUG，适合${solution.identity}。`]
   ] as const;
   const reportInlineNotice = compactNotice(notice, 42);
 
+  useEffect(() => {
+    playAudioCue("report_generate");
+  }, [order.id, playAudioCue]);
+
   return (
     <Screen background={assets.bgTerminal} className="report-page">
-      <TopBar onBack={() => go("packingLive")} progress="09 / 09" />
-      <PageTitle label="BREAKFAST BUG REPORT" title="我的早餐透明报告" subtitle="豪士藜麦吐司透明验证已完成。" />
+      <TopBar audioToggle={audioToggle} onBack={() => go("packingLive")} progress="09 / 09" />
+      <PageTitle label={reportPageText.label} title={reportPageText.title} subtitle={reportPageText.subtitle} />
 
       <div className="report-card report-certificate" ref={reportRef}>
         <header className="report-certificate-head">
@@ -2204,10 +2370,17 @@ export function ReportPage({ go, order, notice, solution, saveReport, shareRepor
             <img className="report-product-front" src={assets.productFrontCropped} alt="豪士藜麦吐司产品正面" decoding="async" loading="eager" />
           </div>
           <div className="report-verdict">
-            <span>透明结论</span>
-            <strong>好吃看得见</strong>
-            <p>原料、工艺与包装追踪码已完成验证，过程可见。</p>
+            <span>{reportPageText.verdictLabel}</span>
+            <strong>{reportPageText.verdictTitle}</strong>
+            <p>{reportPageText.verdictCopy}</p>
             <small>{solution.recommendation} · {solution.identity}</small>
+            <img
+              className="report-export-mascot"
+              src={assets.mascotGuardianShield}
+              alt="豪小士透明验证官"
+              decoding="async"
+              loading="eager"
+            />
           </div>
         </section>
 
@@ -2221,20 +2394,26 @@ export function ReportPage({ go, order, notice, solution, saveReport, shareRepor
           ))}
         </section>
 
+        <div className="report-slogan-strip" aria-label={reportPageText.slogan}>
+          <ShieldCheck size={14} />
+          <strong>{reportPageText.slogan}</strong>
+          <Sparkles size={14} />
+        </div>
+
       </div>
 
       <div className="report-actions">
-        <button onClick={saveReport}><Download size={18} />保存报告</button>
-        <button onClick={shareReport}><Share2 size={18} />分享报告</button>
+        <button onClick={saveReport}><Download size={18} />{reportPageText.saveButton}</button>
+        <button onClick={shareReport}><Share2 size={18} />{reportPageText.shareButton}</button>
         <button onClick={openPurchasePage}>
-          <ShoppingCart size={18} />购买同款
+          <ShoppingCart size={18} />{reportPageText.buyButton}
         </button>
       </div>
       <p className={`report-inline-status ${reportInlineNotice ? "active" : ""}`}>
-        {reportInlineNotice || "报告已生成。"}
+        {reportInlineNotice || reportPageText.generatedNotice}
       </p>
       <GlowButton variant="secondary" onClick={() => go("home")}>
-        再来一次
+        {reportPageText.restartButton}
       </GlowButton>
     </Screen>
   );

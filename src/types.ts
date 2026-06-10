@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { Dispatch, ReactNode, RefObject, SetStateAction } from "react";
 
 export type PageId =
   | "home"
@@ -14,6 +14,40 @@ export type PageId =
 
 export type FactoryAreaId = "material" | "pressing" | "proofing" | "baking" | "packing";
 export type TransitionPhase = "loading" | "handoff" | "home";
+export type AudioSceneId = PageId | "entry";
+export type AudioCueName =
+  | "soft_power_on"
+  | "digital_wake"
+  | "system_ready_beep"
+  | "enter_confirm"
+  | "short_whoosh"
+  | "soft_ui_tap"
+  | "bug_select"
+  | "system_upload"
+  | "data_confirm"
+  | "soft_pick"
+  | "data_blip"
+  | "confirm_tick"
+  | "success_rise"
+  | "machine_start"
+  | "machine_stop"
+  | "machine_complete"
+  | "soft_slider_tick"
+  | "stable_confirm"
+  | "soft_warning"
+  | "target_near_beep"
+  | "short_warning_glitch"
+  | "bake_success"
+  | "package_rotate_tick"
+  | "package_rotate_ready"
+  | "scan_sweep"
+  | "code_confirm_beep"
+  | "transparent_success"
+  | "report_generate"
+  | "save_confirm"
+  | "share_confirm"
+  | "copy_success";
+export type AudioLoopName = "machine_loop_low" | "digital_reading_loop";
 
 export type BugOption = {
   id: string;
@@ -72,4 +106,8 @@ export type PageProps = {
   transitionPhase: TransitionPhase;
   homeArrivalActive: boolean;
   homeRepairActive: boolean;
+  playAudioCue: (name: AudioCueName) => void;
+  startAudioLoop: (name: AudioLoopName) => void;
+  stopAudioLoop: (name: AudioLoopName) => void;
+  audioToggle?: ReactNode;
 };

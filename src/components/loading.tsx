@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { assets } from "../lib/assets";
 import { matrixBinaryTokens, matrixRainPhrases, matrixStoryTokens } from "../lib/content";
-import type { TransitionPhase } from "../types";
+import type { AudioCueName, TransitionPhase } from "../types";
 import { useDesignCanvasScale } from "../hooks/useDesignCanvasScale";
 
 type ParticleSprite = {
@@ -13,6 +13,7 @@ type ParticleSprite = {
 };
 
 const particleSpriteCache = new Map<string, ParticleSprite>();
+let homeMascotMorphImagePromise: Promise<HTMLImageElement> | null = null;
 
 const quantize = (value: number, step: number) => Math.round(value / step) * step;
 
@@ -24,6 +25,41 @@ const isLowPowerCanvasRuntime = () => {
     (navigatorWithMemory.deviceMemory || 8) <= 4
   );
 };
+
+const getHomeMascotMorphImage = () => {
+  if (homeMascotMorphImagePromise) return homeMascotMorphImagePromise;
+
+  homeMascotMorphImagePromise = new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.decoding = "async";
+    (image as HTMLImageElement & { fetchPriority?: "high" | "low" | "auto" }).fetchPriority = "high";
+
+    const resolveDecodedImage = () => {
+      const decodePromise = image.decode ? image.decode().catch(() => undefined) : Promise.resolve();
+      decodePromise.then(() => resolve(image));
+    };
+
+    image.onload = resolveDecodedImage;
+    image.onerror = () => {
+      homeMascotMorphImagePromise = null;
+      reject(new Error("Failed to load home mascot morph image."));
+    };
+    image.src = assets.homeMascot;
+
+    if (image.complete && image.naturalWidth) {
+      resolveDecodedImage();
+    }
+  });
+
+  return homeMascotMorphImagePromise;
+};
+
+export function warmIntroMascotMorphImage() {
+  getHomeMascotMorphImage().catch(() => {
+    homeMascotMorphImagePromise = null;
+  });
+}
 
 const getParticleSprite = (
   token: string,
@@ -323,14 +359,11 @@ export function IntroMascotMorph() {
       if (imageStarted || disposed) return;
       imageStarted = true;
 
-      const image = new Image();
-      image.crossOrigin = "anonymous";
-      image.onload = () => startMorph(image);
-      image.src = assets.homeMascot;
-
-      if (image.complete && image.naturalWidth) {
-        startMorph(image);
-      }
+      getHomeMascotMorphImage()
+        .then((image) => startMorph(image))
+        .catch(() => {
+          imageStarted = false;
+        });
     };
 
     const handleVisibilityChange = () => {
@@ -342,9 +375,7 @@ export function IntroMascotMorph() {
     };
 
     resizeCanvas();
-    setupFrame = window.requestAnimationFrame(() => {
-      setupFrame = window.requestAnimationFrame(loadImage);
-    });
+    loadImage();
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
@@ -362,11 +393,13 @@ export function IntroMascotMorph() {
 export function LoadingPage({
   phase,
   isExiting,
-  onEnter
+  onEnter,
+  onAudioCue
 }: {
   phase: TransitionPhase;
   isExiting: boolean;
   onEnter: () => void;
+  onAudioCue?: (name: AudioCueName) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mascotCodeCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -389,6 +422,17 @@ export function LoadingPage({
   useEffect(() => {
     isExitingRef.current = isExiting;
   }, [isExiting]);
+
+  useEffect(() => {
+    onAudioCue?.("soft_power_on");
+    const wakeTimer = window.setTimeout(() => {
+      onAudioCue?.("digital_wake");
+    }, 520);
+
+    return () => {
+      window.clearTimeout(wakeTimer);
+    };
+  }, [onAudioCue]);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -438,6 +482,7 @@ export function LoadingPage({
       updateDisplayProgress(100);
       if (!hasCompletedRef.current) {
         hasCompletedRef.current = true;
+        onAudioCue?.("system_ready_beep");
         onEnter();
       }
     };
@@ -463,7 +508,7 @@ export function LoadingPage({
       window.clearTimeout(completionTimer);
       tween.kill();
     };
-  }, [onEnter]);
+  }, [onAudioCue, onEnter]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

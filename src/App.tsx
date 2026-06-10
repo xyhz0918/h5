@@ -1,17 +1,27 @@
-import gsap from "gsap";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Volume2, VolumeX } from "lucide-react";
 import { assets } from "./lib/assets";
-import { bugOptions, factoryAreaSequence } from "./lib/content";
+import { AudioDirector } from "./lib/audioDirector";
+import { bugOptions, factoryAreaSequence, reportSlogan } from "./lib/content";
 import { trackFunnelEvent, type FunnelEventName } from "./lib/tracking";
 import { timestamp, workOrderId } from "./lib/time";
-import { AdminPage } from "./AdminPage";
-import { IntroMascotMorph, LoadingPage } from "./components/loading";
+import { IntroMascotMorph, LoadingPage, warmIntroMascotMorphImage } from "./components/loading";
 import { BakingLivePage, HomePage, IngredientScanPage, PackingLivePage, ProofingLivePage, ReportPage, SelectPage, SoftRepairPage, WorkOrderPage } from "./pages";
-import type { FactoryAreaId, PageId, TransitionPhase, WorkOrder } from "./types";
+import type { AudioCueName, AudioLoopName, AudioSceneId, BugOption, FactoryAreaId, PageId, TransitionPhase, WorkOrder } from "./types";
 
 const productPurchaseUrl = "https://item.jd.com/10074510939302.html";
 const purchaseReturnSnapshotKey = "horsh:purchase-return:v1";
 const purchaseReturnSnapshotTtlMs = 15 * 60 * 1000;
+const AdminPage = lazy(() => import("./AdminPage").then((module) => ({ default: module.AdminPage })));
+const reportShareTitle = "豪士透明工厂 早餐透明报告";
+const reportNoticeText = {
+  saveSuccess: "透明报告图片已生成，浏览器正在下载。",
+  saveFailed: "保存图片失败，请截图保存当前透明报告。",
+  shareOpened: "分享面板已打开。",
+  shareCancelled: "已取消分享。",
+  shareCopied: "当前浏览器不支持直接分享，已复制分享文案。",
+  shareFailed: "当前浏览器不支持直接分享，请手动截图分享透明报告。"
+} as const;
 
 type PurchaseReturnSnapshot = {
   page: "report";
@@ -32,6 +42,8 @@ type ReportImageCache = {
   key: string;
   blob: Blob;
 };
+
+const reportExportLayoutVersion = "guardian-slogan-v3";
 
 type IdleWindow = typeof window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
@@ -54,13 +66,13 @@ const h5PageImagePreloadMap: Record<PageId, string[]> = {
   home: [
     assets.bgPortal,
     assets.logoCompact,
-    assets.homePlatform,
-    assets.homeMascot,
     assets.homePanelOnline,
     assets.homePanelPlan,
     assets.homePanelBread,
     assets.homePanelScan,
-    assets.homePanelComplete
+    assets.homePanelComplete,
+    assets.homeMascot,
+    assets.homePlatform
   ],
   select: [assets.bgCards, assets.mascotField],
   workOrder: [assets.bgFactory, assets.factoryCutout, assets.mascotOperator],
@@ -83,11 +95,44 @@ const h5PageImagePreloadMap: Record<PageId, string[]> = {
   ],
   bakingLive: [assets.bgFactory, assets.bakingOven, assets.toastDough, assets.toastRaw, assets.toastOverdone, assets.heatTrack, assets.heatThumb],
   packingLive: [assets.bgFactory, assets.productBoxCropped, assets.productFrontCropped],
-  report: [assets.bgTerminal, assets.productBoxCropped, assets.productFrontCropped]
+  report: [assets.bgTerminal, assets.productBoxCropped, assets.productFrontCropped, assets.mascotGuardianShield]
 };
+
+function getReportShareText(order: WorkOrder, solution: BugOption) {
+  return `我的早餐透明报告 ${order.id} 已生成：${order.bugType} 通过豪士透明工厂验证。当前身份：${solution.identity}，推荐方案：${solution.recommendation}。${solution.scenarioCopy} ${reportSlogan}`;
+}
+
+async function waitForReportCaptureAssets(root: HTMLElement) {
+  await document.fonts?.ready.catch(() => undefined);
+
+  const images = Array.from(root.querySelectorAll("img"));
+  await Promise.all(
+    images.map((image) => {
+      if (image.complete && image.naturalWidth > 0) {
+        return Promise.resolve();
+      }
+
+      if (image.decode) {
+        return image.decode().catch(() => undefined);
+      }
+
+      return new Promise<void>((resolve) => {
+        if (image.complete) {
+          resolve();
+          return;
+        }
+
+        const finish = () => resolve();
+        image.addEventListener("load", finish, { once: true });
+        image.addEventListener("error", finish, { once: true });
+      });
+    })
+  );
+}
 
 const imagePreloadCache = new Set<string>();
 const imagePreloadQueue = new Set<string>();
+const warmImageCache = new Map<string, HTMLImageElement>();
 const imageFilePattern = /\.(avif|gif|jpe?g|png|svg|webp)(\?|$)/i;
 const stageByPage: Partial<Record<PageId, string>> = {
   select: "bug_select",
@@ -123,6 +168,25 @@ function preloadImage(src: string, loading: "eager" | "lazy" = "eager") {
   if (image.decode) {
     void image.decode().catch(() => undefined);
   }
+}
+
+function warmPersistentImage(src: string, loading: "eager" | "lazy" = "eager") {
+  if (typeof window === "undefined" || !src || warmImageCache.has(src) || !imageFilePattern.test(src)) {
+    return;
+  }
+
+  const image = new Image();
+  image.decoding = "async";
+  image.loading = loading;
+  (image as HTMLImageElement & { fetchPriority?: "high" | "low" | "auto" }).fetchPriority =
+    loading === "eager" ? "high" : "auto";
+  image.src = src;
+  warmImageCache.set(src, image);
+  void image.decode?.().catch(() => undefined);
+}
+
+function warmHomeVisualImages() {
+  h5PageImagePreloadMap.home.forEach((src) => warmPersistentImage(src, "eager"));
 }
 
 function getPageImagePreloadSources(pageId: PageId, lookahead = 2) {
@@ -338,7 +402,17 @@ function clearPurchaseReturnSnapshot() {
 
 function App() {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
-    return <AdminPage />;
+    return (
+      <Suspense
+        fallback={
+          <main className="admin-page admin-page-loading">
+            <div className="admin-loading-card">后台加载中...</div>
+          </main>
+        }
+      >
+        <AdminPage />
+      </Suspense>
+    );
   }
 
   const purchaseReturnSnapshot = useMemo(() => readPurchaseReturnSnapshot(), []);
@@ -367,9 +441,10 @@ function App() {
   const arrivalTimerRef = useRef<number | null>(null);
   const loadingExitTimerRef = useRef<number | null>(null);
   const homeRepairTimerRef = useRef<number | null>(null);
-  const introTimelineRef = useRef<ReturnType<typeof gsap.timeline> | null>(null);
+  const audioDirectorRef = useRef<AudioDirector | null>(null);
   const trackedCompletionKeysRef = useRef<Set<string>>(new Set());
   const trackedReportIdsRef = useRef<Set<string>>(new Set());
+  const [audioEnabled, setAudioEnabled] = useState(false);
 
   const selectedBug = useMemo(
     () => bugOptions.find((bug) => bug.id === selectedBugId) ?? null,
@@ -377,6 +452,7 @@ function App() {
   );
 
   useEffect(() => {
+    warmHomeVisualImages();
     preloadPageImages("home", 0, "eager");
   }, []);
 
@@ -387,6 +463,115 @@ function App() {
 
     return preloadPageImagesBatched(page, page === "home" ? 1 : 2, "lazy");
   }, [hasEntered, page, showLoading, transitionPhase]);
+
+  useEffect(() => {
+    if (hasEntered) {
+      warmHomeVisualImages();
+      warmIntroMascotMorphImage();
+    }
+  }, [hasEntered]);
+
+  const getAudioDirector = useCallback(() => {
+    if (!audioDirectorRef.current) {
+      audioDirectorRef.current = new AudioDirector();
+    }
+
+    return audioDirectorRef.current;
+  }, []);
+
+  const currentAudioScene = useMemo<AudioSceneId>(() => {
+    if (showLoading || transitionPhase === "loading") return "entry";
+    return page;
+  }, [page, showLoading, transitionPhase]);
+
+  const playAudioCue = useCallback(
+    (name: AudioCueName) => {
+      getAudioDirector().playSfx(name);
+    },
+    [getAudioDirector]
+  );
+
+  const startAudioLoop = useCallback(
+    (name: AudioLoopName) => {
+      getAudioDirector().startLoop(name);
+    },
+    [getAudioDirector]
+  );
+
+  const stopAudioLoop = useCallback(
+    (name: AudioLoopName) => {
+      getAudioDirector().stopLoop(name);
+    },
+    [getAudioDirector]
+  );
+
+  const enableAudio = useCallback(
+    async (scene: AudioSceneId = currentAudioScene) => {
+      const audio = getAudioDirector();
+      await audio.unlock();
+      audio.setScene(scene);
+      audio.setEnabled(true);
+      setAudioEnabled(true);
+    },
+    [currentAudioScene, getAudioDirector]
+  );
+
+  const toggleAudio = useCallback(() => {
+    const audio = getAudioDirector();
+
+    if (audioEnabled) {
+      audio.setEnabled(false);
+      setAudioEnabled(false);
+      setNotice("声音已关闭。");
+      return;
+    }
+
+    void enableAudio(currentAudioScene)
+      .then(() => {
+        playAudioCue("soft_ui_tap");
+        setNotice("声音已开启，BGM 将按页面氛围自动调整。");
+      })
+      .catch(() => {
+        setNotice("当前浏览器暂时无法启动声音，请再点一次声音按钮。");
+      });
+  }, [audioEnabled, currentAudioScene, enableAudio, getAudioDirector, playAudioCue]);
+
+  useEffect(() => {
+    if (!showLoading || transitionPhase !== "loading" || audioEnabled) return;
+
+    void enableAudio("entry").catch(() => {
+      // Mobile browsers may block autoplay before a user gesture.
+    });
+  }, [audioEnabled, enableAudio, showLoading, transitionPhase]);
+
+  useEffect(() => {
+    getAudioDirector().setScene(currentAudioScene);
+  }, [currentAudioScene, getAudioDirector]);
+
+  useEffect(
+    () => () => {
+      audioDirectorRef.current?.destroy();
+    },
+    []
+  );
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!audioEnabled) return;
+
+      if (document.hidden) {
+        audioDirectorRef.current?.suspend();
+        return;
+      }
+
+      void audioDirectorRef.current?.resume().catch(() => undefined);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [audioEnabled]);
 
   const solution = selectedBug ?? bugOptions[0];
 
@@ -442,6 +627,7 @@ function App() {
   const reportImageCacheKey = useMemo(
     () =>
       JSON.stringify({
+        layoutVersion: reportExportLayoutVersion,
         orderId: currentOrder.id,
         bugType: currentOrder.bugType,
         description: currentOrder.description,
@@ -518,6 +704,7 @@ function App() {
 
   const go = (target: PageId) => {
     setNotice("");
+    playAudioCue("soft_ui_tap");
     const completedStage = completedStageByTransition[`${page}->${target}` as `${PageId}->${PageId}`];
 
     if (completedStage) {
@@ -551,6 +738,11 @@ function App() {
 
     if (target === "home") {
       clearPurchaseReturnSnapshot();
+      setPage(target);
+      if (hasEntered) {
+        runIntroToHomeTimeline();
+      }
+      return;
     }
     if (target === "select") {
       setSelectedBugId(null);
@@ -575,7 +767,6 @@ function App() {
 
   const runIntroToHomeTimeline = useCallback(() => {
     clearIntroTimers();
-    introTimelineRef.current?.kill();
 
     setHasEntered(true);
     setTransitionPhase("handoff");
@@ -588,17 +779,13 @@ function App() {
       setLoadingExiting(false);
     };
 
-    const completeIntroToHome = (killTimeline = false) => {
+    const completeIntroToHome = () => {
       clearIntroTimers();
-      if (killTimeline) {
-        introTimelineRef.current?.kill();
-      }
       setShowLoading(false);
       setLoadingExiting(false);
       setHomeArrivalActive(false);
       setHomeRepairActive(false);
       setTransitionPhase("home");
-      introTimelineRef.current = null;
     };
 
     loadingExitTimerRef.current = window.setTimeout(() => {
@@ -613,37 +800,8 @@ function App() {
 
     arrivalTimerRef.current = window.setTimeout(() => {
       arrivalTimerRef.current = null;
-      completeIntroToHome(true);
+      completeIntroToHome();
     }, 1700);
-
-    const timeline = gsap.timeline({
-      defaults: { ease: "power2.out", overwrite: "auto" },
-      onComplete: () => {
-        completeIntroToHome();
-      }
-    });
-
-    timeline
-      .addLabel("handoff", 0)
-      .to({}, { duration: 1.7 }, "handoff")
-      .call(
-        () => {
-          hideLoadingLayer();
-        },
-        [],
-        "handoff+=0.22"
-      )
-      .call(() => setHomeRepairActive(false), [], "handoff+=1.58")
-      .call(
-        () => {
-          setHomeArrivalActive(false);
-          setTransitionPhase("home");
-        },
-        [],
-        "handoff+=1.7"
-      );
-
-    introTimelineRef.current = timeline;
   }, [clearIntroTimers]);
 
   const enterHomeFromLoading = useCallback(() => {
@@ -653,8 +811,6 @@ function App() {
   useEffect(
     () => () => {
       clearIntroTimers();
-      introTimelineRef.current?.kill();
-      introTimelineRef.current = null;
     },
     [clearIntroTimers]
   );
@@ -711,6 +867,7 @@ function App() {
   };
 
   const selectBug = (id: string) => {
+    playAudioCue("bug_select");
     setSelectedBugId((current) => (current === id ? current : id));
     const bug = bugOptions.find((option) => option.id === id);
     trackFunnelEvent({
@@ -730,10 +887,12 @@ function App() {
 
   const submitBug = () => {
     if (!selectedBug) {
+      playAudioCue("soft_warning");
       setNotice("请先选择一个早餐困扰，再接入豪士透明工厂。");
       return;
     }
 
+    playAudioCue("system_upload");
     clearPurchaseReturnSnapshot();
     const now = new Date();
     const nextOrder = {
@@ -771,28 +930,52 @@ function App() {
   const reportImageFileName = `豪士早餐透明报告-${currentOrder.id}.png`;
 
   const createReportImageBlob = async () => {
-    if (!reportRef.current) return null;
+    const reportElement = reportRef.current;
+    if (!reportElement) return null;
 
     if (reportImageCacheRef.current?.key === reportImageCacheKey) {
       return reportImageCacheRef.current.blob;
     }
 
     const { toBlob } = await import("html-to-image");
+    const captureHost = document.createElement("div");
+    const captureNode = reportElement.cloneNode(true) as HTMLDivElement;
+    const captureWidth = reportElement.offsetWidth || 610;
 
-    const blob = await toBlob(reportRef.current, {
-      cacheBust: true,
-      pixelRatio: 2,
-      backgroundColor: "#020805"
-    });
+    captureHost.className = "report-page report-export-host";
+    captureHost.setAttribute("aria-hidden", "true");
+    captureHost.style.position = "fixed";
+    captureHost.style.left = "-10000px";
+    captureHost.style.top = "0";
+    captureHost.style.width = `${captureWidth}px`;
+    captureHost.style.pointerEvents = "none";
+    captureHost.style.zIndex = "-1";
 
-    if (blob) {
-      reportImageCacheRef.current = {
-        key: reportImageCacheKey,
-        blob
-      };
+    captureNode.classList.add("report-export-capture");
+    captureNode.style.width = `${captureWidth}px`;
+    captureHost.appendChild(captureNode);
+    document.body.appendChild(captureHost);
+
+    try {
+      await waitForReportCaptureAssets(captureNode);
+
+      const blob = await toBlob(captureNode, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#020805"
+      });
+
+      if (blob) {
+        reportImageCacheRef.current = {
+          key: reportImageCacheKey,
+          blob
+        };
+      }
+
+      return blob;
+    } finally {
+      captureHost.remove();
     }
-
-    return blob;
   };
 
   const saveReport = async () => {
@@ -814,18 +997,19 @@ function App() {
         stage: "report",
         fileName: reportImageFileName
       });
-      setNotice("透明报告图片已生成，浏览器正在下载。");
+      playAudioCue("save_confirm");
+      setNotice(reportNoticeText.saveSuccess);
     } catch {
       trackEvent("report_save_failed", {
         stage: "report"
       });
-      setNotice("保存图片失败，请截图保存当前透明报告。");
+      setNotice(reportNoticeText.saveFailed);
     }
   };
 
   const shareReport = async () => {
-    const text = `我的早餐透明报告 ${currentOrder.id} 已生成：${currentOrder.bugType} 通过豪士透明工厂验证。当前身份：${solution.identity}，推荐方案：${solution.recommendation}。豪士藜麦吐司，好吃看得见。`;
-    const title = "豪士透明工厂 早餐透明报告";
+    const text = getReportShareText(currentOrder, solution);
+    const title = reportShareTitle;
 
     if (navigator.share) {
       try {
@@ -840,7 +1024,8 @@ function App() {
               stage: "report",
               method: "web_share_file"
             });
-            setNotice("分享面板已打开。");
+            playAudioCue("share_confirm");
+            setNotice(reportNoticeText.shareOpened);
             return;
           }
         }
@@ -850,7 +1035,7 @@ function App() {
             stage: "report",
             method: "web_share_file"
           });
-          setNotice("已取消分享。");
+          setNotice(reportNoticeText.shareCancelled);
           return;
         }
       }
@@ -863,7 +1048,8 @@ function App() {
           stage: "report",
           method: "web_share_text"
         });
-        setNotice("分享面板已打开。");
+        playAudioCue("share_confirm");
+        setNotice(reportNoticeText.shareOpened);
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -871,7 +1057,7 @@ function App() {
             stage: "report",
             method: "web_share_text"
           });
-          setNotice("已取消分享。");
+          setNotice(reportNoticeText.shareCancelled);
           return;
         }
       }
@@ -883,12 +1069,13 @@ function App() {
         stage: "report",
         method: "clipboard"
       });
-      setNotice("当前浏览器不支持直接分享，已复制分享文案。");
+      playAudioCue("copy_success");
+      setNotice(reportNoticeText.shareCopied);
     } catch {
       trackEvent("report_share_failed", {
         stage: "report"
       });
-      setNotice("当前浏览器不支持直接分享，请手动截图分享透明报告。");
+      setNotice(reportNoticeText.shareFailed);
     }
   };
 
@@ -943,6 +1130,18 @@ function App() {
     });
   };
 
+  const audioToggle = hasEntered && !showLoading && transitionPhase !== "handoff" ? (
+    <button
+      type="button"
+      className={`cyber-audio-toggle ${audioEnabled ? "is-on" : ""}`}
+      onClick={toggleAudio}
+      aria-label={audioEnabled ? "关闭声音" : "开启声音"}
+      title={audioEnabled ? "关闭声音" : "开启声音"}
+    >
+      {audioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+    </button>
+  ) : null;
+
   const common = {
     go,
     notice,
@@ -976,7 +1175,11 @@ function App() {
     reportRef,
     transitionPhase,
     homeArrivalActive,
-    homeRepairActive
+    homeRepairActive,
+    playAudioCue,
+    startAudioLoop,
+    stopAudioLoop,
+    audioToggle
   };
 
   return (
@@ -995,7 +1198,23 @@ function App() {
         </>
       )}
       {showLoading && (
-        <LoadingPage phase={transitionPhase} isExiting={loadingExiting} onEnter={enterHomeFromLoading} />
+        <LoadingPage
+          phase={transitionPhase}
+          isExiting={loadingExiting}
+          onEnter={enterHomeFromLoading}
+          onAudioCue={playAudioCue}
+        />
+      )}
+      {false && hasEntered && !showLoading && transitionPhase !== "handoff" && (
+        <button
+          type="button"
+          className={`cyber-audio-toggle ${audioEnabled ? "is-on" : ""}`}
+          onClick={toggleAudio}
+          aria-label={audioEnabled ? "关闭声音" : "开启声音"}
+          title={audioEnabled ? "关闭声音" : "开启声音"}
+        >
+          {audioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+        </button>
       )}
       {transitionPhase === "handoff" && <IntroMascotMorph />}
     </>

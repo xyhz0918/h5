@@ -1,0 +1,243 @@
+{
+  "firstStable": {
+    "href": "http://127.0.0.1:5176/?second-entry=1781006792416",
+    "homeClass": "screen home-page transition-home  ",
+    "transitionHandoff": false,
+    "morphExists": false,
+    "morphZ": null,
+    "mascotOpacity": "1",
+    "panelCount": 5,
+    "panelVisibleCount": 5,
+    "loadedImageCount": 5,
+    "totalImageCount": 5,
+    "afterZ": "1",
+    "panels": [
+      {
+        "cls": "home-float-panel home-panel-online",
+        "x": 43,
+        "y": 150,
+        "w": 138,
+        "h": 108,
+        "opacity": "0.998209",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-plan",
+        "x": 467,
+        "y": 161,
+        "w": 126,
+        "h": 106,
+        "opacity": "0.92",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-bread is-focus",
+        "x": 478,
+        "y": 276,
+        "w": 120,
+        "h": 172,
+        "opacity": "0.94",
+        "z": "5"
+      },
+      {
+        "cls": "home-float-panel home-panel-scan",
+        "x": 46,
+        "y": 372,
+        "w": 120,
+        "h": 138,
+        "opacity": "1",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-complete",
+        "x": 422,
+        "y": 458,
+        "w": 107,
+        "h": 124,
+        "opacity": "0.976726",
+        "z": "1"
+      }
+    ]
+  },
+  "second120": {
+    "href": "http://127.0.0.1:5176/?second-entry=1781006792416",
+    "homeClass": "screen home-page transition-handoff home-arrival home-repair-active",
+    "transitionHandoff": true,
+    "morphExists": true,
+    "morphZ": "140",
+    "mascotOpacity": "0",
+    "panelCount": 5,
+    "panelVisibleCount": 5,
+    "loadedImageCount": 10,
+    "totalImageCount": 10,
+    "afterZ": "2",
+    "panels": [
+      {
+        "cls": "home-float-panel home-panel-online",
+        "x": 37,
+        "y": 158,
+        "w": 140,
+        "h": 111,
+        "opacity": "0.920123",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-plan",
+        "x": 473,
+        "y": 154,
+        "w": 128,
+        "h": 108,
+        "opacity": "0.92",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-bread is-focus",
+        "x": 477,
+        "y": 280,
+        "w": 118,
+        "h": 169,
+        "opacity": "0.94",
+        "z": "5"
+      },
+      {
+        "cls": "home-float-panel home-panel-scan",
+        "x": 49,
+        "y": 372,
+        "w": 120,
+        "h": 138,
+        "opacity": "0.9",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-complete",
+        "x": 429,
+        "y": 453,
+        "w": 104,
+        "h": 120,
+        "opacity": "0.900113",
+        "z": "1"
+      }
+    ]
+  },
+  "second650": {
+    "href": "http://127.0.0.1:5176/?second-entry=1781006792416",
+    "homeClass": "screen home-page transition-home  ",
+    "transitionHandoff": false,
+    "morphExists": false,
+    "morphZ": null,
+    "mascotOpacity": "1",
+    "panelCount": 5,
+    "panelVisibleCount": 5,
+    "loadedImageCount": 5,
+    "totalImageCount": 5,
+    "afterZ": "1",
+    "panels": [
+      {
+        "cls": "home-float-panel home-panel-online",
+        "x": 43,
+        "y": 150,
+        "w": 138,
+        "h": 108,
+        "opacity": "0.999806",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-plan",
+        "x": 467,
+        "y": 161,
+        "w": 126,
+        "h": 106,
+        "opacity": "0.92",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-bread is-focus",
+        "x": 478,
+        "y": 276,
+        "w": 120,
+        "h": 172,
+        "opacity": "0.94",
+        "z": "5"
+      },
+      {
+        "cls": "home-float-panel home-panel-scan",
+        "x": 49,
+        "y": 372,
+        "w": 120,
+        "h": 138,
+        "opacity": "1",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-complete",
+        "x": 422,
+        "y": 458,
+        "w": 108,
+        "h": 124,
+        "opacity": "0.979124",
+        "z": "1"
+      }
+    ]
+  },
+  "secondFinal": {
+    "href": "http://127.0.0.1:5176/?second-entry=1781006792416",
+    "homeClass": "screen home-page transition-home  ",
+    "transitionHandoff": false,
+    "morphExists": false,
+    "morphZ": null,
+    "mascotOpacity": "1",
+    "panelCount": 5,
+    "panelVisibleCount": 5,
+    "loadedImageCount": 5,
+    "totalImageCount": 5,
+    "afterZ": "1",
+    "panels": [
+      {
+        "cls": "home-float-panel home-panel-online",
+        "x": 37,
+        "y": 158,
+        "w": 140,
+        "h": 110,
+        "opacity": "0.921557",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-plan",
+        "x": 472,
+        "y": 156,
+        "w": 126,
+        "h": 107,
+        "opacity": "0.92",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-bread is-focus",
+        "x": 475,
+        "y": 276,
+        "w": 120,
+        "h": 172,
+        "opacity": "0.94",
+        "z": "5"
+      },
+      {
+        "cls": "home-float-panel home-panel-scan",
+        "x": 49,
+        "y": 372,
+        "w": 120,
+        "h": 138,
+        "opacity": "0.9",
+        "z": "4"
+      },
+      {
+        "cls": "home-float-panel home-panel-complete",
+        "x": 429,
+        "y": 453,
+        "w": 104,
+        "h": 120,
+        "opacity": "0.905077",
+        "z": "1"
+      }
+    ]
+  },
+  "errors": []
+}

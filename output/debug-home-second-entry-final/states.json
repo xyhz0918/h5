@@ -1,0 +1,55 @@
+{
+  "states": [
+    {
+      "label": "second-260",
+      "homeClass": "screen home-page transition-handoff home-arrival home-repair-active",
+      "canvasExists": true,
+      "canvasPixels": 13,
+      "mascotOpacity": "0",
+      "panelCount": 5,
+      "panelVisibleCount": 5,
+      "afterZ": "2"
+    },
+    {
+      "label": "second-480",
+      "homeClass": "screen home-page transition-home  ",
+      "canvasExists": false,
+      "canvasPixels": null,
+      "mascotOpacity": "1",
+      "panelCount": 5,
+      "panelVisibleCount": 5,
+      "afterZ": "1"
+    },
+    {
+      "label": "second-900",
+      "homeClass": "screen home-page transition-home  ",
+      "canvasExists": false,
+      "canvasPixels": null,
+      "mascotOpacity": "1",
+      "panelCount": 5,
+      "panelVisibleCount": 5,
+      "afterZ": "1"
+    },
+    {
+      "label": "second-1200",
+      "homeClass": "screen home-page transition-home  ",
+      "canvasExists": false,
+      "canvasPixels": null,
+      "mascotOpacity": "1",
+      "panelCount": 5,
+      "panelVisibleCount": 5,
+      "afterZ": "1"
+    },
+    {
+      "label": "second-final",
+      "homeClass": "screen home-page transition-home  ",
+      "canvasExists": false,
+      "canvasPixels": null,
+      "mascotOpacity": "1",
+      "panelCount": 5,
+      "panelVisibleCount": 5,
+      "afterZ": "1"
+    }
+  ],
+  "errors": []
+}
