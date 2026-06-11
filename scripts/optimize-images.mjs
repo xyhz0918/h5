@@ -9,7 +9,9 @@ const targets = [
   {
     input: "assets/images/factory/haoshi-transparent-factory-cutout.webp",
     output: "assets/images/factory/haoshi-transparent-factory-cutout-optimized.webp",
-    quality: 82
+    quality: 78,
+    alphaQuality: 70,
+    extract: { left: 0, top: 206, width: 941, height: 965 }
   },
   {
     input: "assets/images/mascot/mascot-operator-terminal-v7.webp",
@@ -28,9 +30,15 @@ for (const target of targets) {
   const outputPath = path.join(rootDir, target.output);
   const before = (await fs.stat(inputPath)).size;
 
-  await sharp(inputPath)
+  let pipeline = sharp(inputPath);
+  if (target.extract) {
+    pipeline = pipeline.extract(target.extract);
+  }
+
+  await pipeline
     .webp({
       quality: target.quality,
+      alphaQuality: target.alphaQuality,
       effort: 6,
       smartSubsample: true
     })

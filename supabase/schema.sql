@@ -4,6 +4,7 @@ create table if not exists public.h5_events (
   client_time timestamptz,
   event_name text not null,
   session_id text not null,
+  visitor_id text,
   order_id text,
   page text,
   bug_id text,
@@ -20,6 +21,7 @@ create table if not exists public.h5_events (
 
 create index if not exists h5_events_created_at_idx on public.h5_events (created_at desc);
 create index if not exists h5_events_session_id_idx on public.h5_events (session_id);
+create index if not exists h5_events_visitor_id_idx on public.h5_events (visitor_id);
 create index if not exists h5_events_event_name_idx on public.h5_events (event_name);
 
 alter table public.h5_events enable row level security;

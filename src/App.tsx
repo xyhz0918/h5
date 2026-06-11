@@ -508,10 +508,18 @@ function App() {
   const enableAudio = useCallback(
     async (scene: AudioSceneId = currentAudioScene) => {
       const audio = getAudioDirector();
-      await audio.unlock();
-      audio.setScene(scene);
-      audio.setEnabled(true);
       setAudioEnabled(true);
+      audio.setScene(scene);
+
+      try {
+        await audio.unlock();
+        audio.setScene(scene);
+        audio.setEnabled(true);
+      } catch (error) {
+        audio.setEnabled(false);
+        setAudioEnabled(false);
+        throw error;
+      }
     },
     [currentAudioScene, getAudioDirector]
   );
@@ -535,14 +543,6 @@ function App() {
         setNotice("当前浏览器暂时无法启动声音，请再点一次声音按钮。");
       });
   }, [audioEnabled, currentAudioScene, enableAudio, getAudioDirector, playAudioCue]);
-
-  useEffect(() => {
-    if (!showLoading || transitionPhase !== "loading" || audioEnabled) return;
-
-    void enableAudio("entry").catch(() => {
-      // Mobile browsers may block autoplay before a user gesture.
-    });
-  }, [audioEnabled, enableAudio, showLoading, transitionPhase]);
 
   useEffect(() => {
     getAudioDirector().setScene(currentAudioScene);
@@ -1131,15 +1131,22 @@ function App() {
   };
 
   const audioToggle = hasEntered && !showLoading && transitionPhase !== "handoff" ? (
-    <button
-      type="button"
-      className={`cyber-audio-toggle ${audioEnabled ? "is-on" : ""}`}
-      onClick={toggleAudio}
-      aria-label={audioEnabled ? "关闭声音" : "开启声音"}
-      title={audioEnabled ? "关闭声音" : "开启声音"}
-    >
-      {audioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-    </button>
+    <div className="audio-toggle-wrap">
+      {!audioEnabled && (
+        <button type="button" className="music-nudge" onClick={toggleAudio}>
+          打开音乐
+        </button>
+      )}
+      <button
+        type="button"
+        className={`cyber-audio-toggle ${audioEnabled ? "is-on" : ""}`}
+        onClick={toggleAudio}
+        aria-label={audioEnabled ? "关闭声音" : "开启声音"}
+        title={audioEnabled ? "关闭声音" : "开启声音"}
+      >
+        {audioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+      </button>
+    </div>
   ) : null;
 
   const common = {

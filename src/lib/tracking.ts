@@ -29,6 +29,7 @@ type TrackFunnelEventInput = {
 };
 
 const sessionIdKey = "horsh:funnel-session:v1";
+const visitorIdKey = "horsh:funnel-visitor:v1";
 
 function getSessionId() {
   try {
@@ -44,6 +45,25 @@ function getSessionId() {
     return sessionId;
   } catch {
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+}
+
+function createTrackingId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getVisitorId() {
+  try {
+    const storedVisitorId = window.localStorage.getItem(visitorIdKey);
+    if (storedVisitorId) return storedVisitorId;
+
+    const visitorId = createTrackingId();
+    window.localStorage.setItem(visitorIdKey, visitorId);
+    return visitorId;
+  } catch {
+    return createTrackingId();
   }
 }
 
@@ -83,6 +103,7 @@ export function trackFunnelEvent({
   if (typeof window === "undefined") return;
 
   const viewport = `${window.innerWidth}x${window.innerHeight}`;
+  const visitorId = getVisitorId();
   const payload = {
     eventName,
     clientTime: new Date().toISOString(),
@@ -98,7 +119,11 @@ export function trackFunnelEvent({
     pathname: window.location.pathname,
     userAgent: navigator.userAgent,
     viewport,
-    data
+    visitorId,
+    data: {
+      ...data,
+      visitorId
+    }
   };
 
   postTrackingPayload(payload);

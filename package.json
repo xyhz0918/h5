@@ -20,7 +20,7 @@
     "vercel:output": "node scripts/prepare-vercel-output.mjs",
     "assets:optimize": "node scripts/optimize-images.mjs",
     "model:optimize": "gltf-transform optimize assets/models/bread-package-optimized.glb assets/models/bread-package-optimized-web.glb --compress false --simplify false --texture-compress webp --texture-size 1024",
-    "model:optimize:lite": "gltf-transform optimize assets/models/bread-package-optimized-web.glb assets/models/bread-package-optimized-lite.glb --compress false --simplify false --texture-compress webp --texture-size 768"
+    "model:optimize:lite": "node scripts/optimize-model.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

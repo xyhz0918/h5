@@ -29,6 +29,8 @@ function normalizeData(value) {
 
 function normalizeEvent(input) {
   const event = input && typeof input === "object" ? input : {};
+  const data = normalizeData(event.data);
+  const visitorId = limitText(event.visitorId || data.visitorId, 120);
 
   return {
     clientTime: limitText(event.clientTime, 80),
@@ -45,7 +47,8 @@ function normalizeEvent(input) {
     pathname: limitText(event.pathname, 260),
     userAgent: limitText(event.userAgent, 500),
     viewport: limitText(event.viewport, 80),
-    data: normalizeData(event.data)
+    visitorId,
+    data: visitorId ? { ...data, visitorId } : data
   };
 }
 
@@ -91,8 +94,8 @@ function toProgressOrNull(value) {
   return Number.isFinite(progress) ? progress : null;
 }
 
-function eventToSupabaseRow(event) {
-  return {
+function eventToSupabaseRow(event, { includeVisitorId = true } = {}) {
+  const row = {
     client_time: toIsoOrNull(event.clientTime),
     event_name: event.eventName,
     session_id: event.sessionId,
@@ -109,6 +112,12 @@ function eventToSupabaseRow(event) {
     viewport: event.viewport || null,
     data: event.data || {}
   };
+
+  if (includeVisitorId) {
+    row.visitor_id = event.visitorId || event.data?.visitorId || null;
+  }
+
+  return row;
 }
 
 function fromSupabaseRow(row) {
@@ -128,6 +137,7 @@ function fromSupabaseRow(row) {
     pathname: row.pathname || "",
     userAgent: row.user_agent || "",
     viewport: row.viewport || "",
+    visitorId: row.visitor_id || row.data?.visitorId || "",
     data: row.data || {}
   };
 }
@@ -150,27 +160,48 @@ async function throwIfSupabaseError(response) {
   const data = await parseSupabaseResponse(response);
   const error = new Error(data?.message || data?.hint || "Supabase request failed");
   error.statusCode = response.status;
+  error.details = data;
   throw error;
+}
+
+function isMissingVisitorIdColumn(data) {
+  const text = JSON.stringify(data || {}).toLowerCase();
+  return text.includes("visitor_id") && (text.includes("column") || text.includes("schema cache"));
 }
 
 async function saveTrackingEvent(event) {
   const { url, tableName } = getSupabaseConfig();
-  const response = await fetch(`${url}/rest/v1/${tableName}`, {
+  const endpoint = `${url}/rest/v1/${tableName}`;
+  const headers = supabaseHeaders({
+    "Content-Type": "application/json",
+    Prefer: "return=minimal"
+  });
+
+  const response = await fetch(endpoint, {
     method: "POST",
-    headers: supabaseHeaders({
-      "Content-Type": "application/json",
-      Prefer: "return=minimal"
-    }),
+    headers,
     body: JSON.stringify(eventToSupabaseRow(event))
   });
+
+  if (!response.ok) {
+    const data = await parseSupabaseResponse(response.clone());
+    if (isMissingVisitorIdColumn(data)) {
+      const fallbackResponse = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(eventToSupabaseRow(event, { includeVisitorId: false }))
+      });
+
+      await throwIfSupabaseError(fallbackResponse);
+      return;
+    }
+  }
 
   await throwIfSupabaseError(response);
 }
 
-async function listTrackingEvents(limit = 300) {
-  const { url, tableName } = getSupabaseConfig();
-  const safeLimit = Math.min(500, Math.max(1, Number(limit) || 300));
-  const columns = [
+function getBaseTrackingColumns() {
+  return [
     "created_at",
     "client_time",
     "event_name",
@@ -187,21 +218,69 @@ async function listTrackingEvents(limit = 300) {
     "user_agent",
     "viewport",
     "data"
-  ].join(",");
+  ];
+}
+
+async function fetchTrackingEvents({ columns, limit, offset }) {
+  const { url, tableName } = getSupabaseConfig();
   const searchParams = new URLSearchParams({
-    select: columns,
+    select: columns.join(","),
     order: "created_at.desc",
-    limit: String(safeLimit)
+    limit: String(limit),
+    offset: String(offset)
   });
   const response = await fetch(`${url}/rest/v1/${tableName}?${searchParams}`, {
     method: "GET",
     headers: supabaseHeaders()
   });
 
-  await throwIfSupabaseError(response);
-  const data = await parseSupabaseResponse(response);
+  if (!response.ok) {
+    const data = await parseSupabaseResponse(response.clone());
+    return { ok: false, data, response };
+  }
 
-  return Array.isArray(data) ? data.map(fromSupabaseRow) : [];
+  const data = await parseSupabaseResponse(response);
+  return { ok: true, data };
+}
+
+async function listTrackingEvents(options = 300) {
+  const requestedLimit =
+    typeof options === "object" && options !== null ? options.limit : Number(options) || 300;
+  const offset = typeof options === "object" && options !== null ? Math.max(0, Number(options.offset) || 0) : 0;
+  const safeLimit = Math.min(500, Math.max(1, Number(requestedLimit) || 300));
+  const fetchLimit = safeLimit + 1;
+  const baseColumns = getBaseTrackingColumns();
+  const visitorColumns = [...baseColumns.slice(0, 4), "visitor_id", ...baseColumns.slice(4)];
+  let hasVisitorIdColumn = true;
+
+  let result = await fetchTrackingEvents({
+    columns: visitorColumns,
+    limit: fetchLimit,
+    offset
+  });
+
+  if (!result.ok && isMissingVisitorIdColumn(result.data)) {
+    hasVisitorIdColumn = false;
+    result = await fetchTrackingEvents({
+      columns: baseColumns,
+      limit: fetchLimit,
+      offset
+    });
+  }
+
+  if (!result.ok) {
+    await throwIfSupabaseError(result.response);
+  }
+
+  const rows = Array.isArray(result.data) ? result.data.map(fromSupabaseRow) : [];
+  const visibleRows = rows.slice(0, safeLimit);
+
+  return {
+    rows: visibleRows,
+    hasMore: rows.length > safeLimit,
+    nextOffset: offset + visibleRows.length,
+    hasVisitorIdColumn
+  };
 }
 
 function checkAdminPassword(password) {

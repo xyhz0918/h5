@@ -440,6 +440,9 @@ async function runSmoke(page) {
     throw new Error("Baking smoke did not reach packing page.");
   }
   console.log("Smoke: verify");
+  await page.waitFor("Boolean(document.querySelector('.package-model-viewer canvas'))", 12000);
+  await page.waitFor("!document.querySelector('.package-model-status')", 20000);
+  await delay(500);
   await page.screenshot("smoke-02-verify");
   await page.evaluate(`(() => {
     const now = new Date();

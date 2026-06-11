@@ -17,10 +17,10 @@ export const assets = {
   mascotGuardianShield: new URL("../../assets/images/mascot/mascot-guardian-shield-report.webp", import.meta.url).href,
   factoryCutout: new URL("../../assets/images/factory/haoshi-transparent-factory-cutout-optimized.webp", import.meta.url).href,
   ingredientMixer: new URL("../../assets/images/ingredient/mixing-core-transparent.webp", import.meta.url).href,
-  ingredientCardGluten: new URL("../../assets/images/ui/图层 1.webp", import.meta.url).href,
-  ingredientCardYeast: new URL("../../assets/images/ui/图层 2.webp", import.meta.url).href,
-  ingredientCardWheat: new URL("../../assets/images/ui/图层 3.webp", import.meta.url).href,
-  ingredientCardQuinoa: new URL("../../assets/images/ui/图层 4.webp", import.meta.url).href,
+  ingredientCardGluten: new URL("../../assets/images/ui/ingredient-card-gluten.webp", import.meta.url).href,
+  ingredientCardYeast: new URL("../../assets/images/ui/ingredient-card-yeast.webp", import.meta.url).href,
+  ingredientCardWheat: new URL("../../assets/images/ui/ingredient-card-wheat.webp", import.meta.url).href,
+  ingredientCardQuinoa: new URL("../../assets/images/ui/ingredient-card-quinoa.webp", import.meta.url).href,
   bakingOven: new URL("../../assets/images/baking/oven-cavity.webp", import.meta.url).href,
   toastDough: new URL("../../assets/images/baking/toast-dough.webp", import.meta.url).href,
   toastRaw: new URL("../../assets/images/baking/toast-raw.webp", import.meta.url).href,
@@ -35,5 +35,5 @@ export const assets = {
   packageModel: new URL("../../assets/models/bread-package-optimized-lite.glb", import.meta.url).href,
   productBoxCropped: new URL("../../assets/product/quinoa-toast/box-420g-3d-cropped-480.webp", import.meta.url).href,
   productFrontCropped: new URL("../../assets/product/quinoa-toast/pouch-front-cropped-640.webp", import.meta.url).href,
-  entryThemeBgm: new URL("../../assets/audio/bgm/horsh-entry-theme.wav", import.meta.url).href
+  entryThemeBgm: new URL("../../assets/audio/bgm/horsh-entry-theme.mp3", import.meta.url).href
 };

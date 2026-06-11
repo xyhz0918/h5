@@ -50,6 +50,7 @@ const duckAttackMs = 80;
 const duckReleaseMs = 250;
 const duckDepth = 0.55;
 const defaultDuckHoldMs = 450;
+const contextResumeTimeoutMs = 1200;
 const noDuckCues = new Set<AudioCueName>([
   "soft_power_on",
   "digital_wake",
@@ -225,7 +226,12 @@ export class AudioDirector {
     const context = this.ensureContext();
     this.ensureBgmElement(context);
     if (context.state !== "running") {
-      await context.resume();
+      await Promise.race([
+        context.resume(),
+        new Promise<void>((resolve) => {
+          window.setTimeout(resolve, contextResumeTimeoutMs);
+        })
+      ]);
     }
     this.unlocked = true;
   }

@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { MeshoptDecoder } from "meshoptimizer";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
@@ -37,6 +38,7 @@ function loadPackageModelScene(src: string) {
   if (cachedScene) return cachedScene;
 
   const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
   const scenePromise = loader.loadAsync(src)
     .then((gltf) => gltf.scene)
     .catch((error) => {

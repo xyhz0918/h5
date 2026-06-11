@@ -55,6 +55,20 @@
 - 输入 `ADMIN_PASSWORD` 后能进入后台。
 - 玩一遍 H5 后，Supabase `h5_events` 表里出现事件数据。
 
+## 6. 已有表升级访客识别字段
+
+如果 `h5_events` 表已经建好，后面再升级后台访客识别，可以在 Supabase SQL Editor 里运行：
+
+`supabase/add-visitor-id.sql`
+
+这份 SQL 只做三件事：
+
+- 给 `h5_events` 增加 `visitor_id` 字段。
+- 给 `visitor_id` 增加查询索引。
+- 预留一段可选回填 SQL；默认不回填旧数据，后台仍会从 `data.visitorId` 兜底读取。
+
+成功标志：Supabase `Table Editor` 里能看到 `visitor_id` 列，后台不再提示“兼容模式识别访客”。
+
 ## 注意
 
 - 不要把 `SUPABASE_SECRET_KEY` 和 `ADMIN_PASSWORD` 发到聊天里。

@@ -20,10 +20,14 @@ export default async function handler(req, res) {
 
   try {
     const limit = Math.min(500, Math.max(1, Number(body.limit) || 300));
-    const rows = await listTrackingEvents(limit);
+    const offset = Math.max(0, Number(body.offset) || 0);
+    const result = await listTrackingEvents({ limit, offset });
     res.status(200).json({
       ok: true,
-      rows
+      rows: result.rows,
+      hasMore: result.hasMore,
+      nextOffset: result.nextOffset,
+      hasVisitorIdColumn: result.hasVisitorIdColumn
     });
   } catch (error) {
     res.status(error.code === "CONFIG_MISSING" ? 503 : error.statusCode || 500).json({
